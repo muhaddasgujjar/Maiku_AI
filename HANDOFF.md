@@ -107,7 +107,7 @@ All core features are coded and ready to test:
 ```
 GROQ_API_KEY=gsk_...          # Required — get free at console.groq.com
 BACKEND_PORT=8765              # WebSocket server port
-LLM_MODEL=llama3-8b-8192      # llama-3.3-70b-versatile for prod
+LLM_MODEL=llama-3.1-8b-instant # llama-3.3-70b-versatile for prod
 STT_MODEL=whisper-large-v3     # Groq Whisper model
 CHROMA_PERSIST_DIR=./chroma_db # ChromaDB storage path
 ```

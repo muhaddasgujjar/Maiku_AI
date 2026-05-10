@@ -2,8 +2,8 @@ import { useState } from 'react'
 import type { AppSettings } from '../types'
 
 const MODELS = [
-  { value: 'llama3-8b-8192', label: 'llama3-8b (faster, dev)' },
-  { value: 'llama-3.3-70b-versatile', label: 'llama-3.3-70b (smarter)' },
+  { value: 'llama-3.1-8b-instant', label: 'llama-3.1-8b-instant (fast, dev)' },
+  { value: 'llama-3.3-70b-versatile', label: 'llama-3.3-70b-versatile (smarter)' },
 ]
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 
 export default function SettingsPanel({ settings, backendUrl, onSave }: Props) {
   const [apiKey, setApiKey] = useState(settings.groqApiKey || '')
-  const [model, setModel] = useState(settings.llmModel || 'llama3-8b-8192')
+  const [model, setModel] = useState(settings.llmModel || 'llama-3.1-8b-instant')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
