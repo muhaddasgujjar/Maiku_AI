@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron')
 const path = require('path')
+const fs = require('fs')
 const { spawn } = require('child_process')
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -7,6 +8,24 @@ const BACKEND_PORT = process.env.BACKEND_PORT || 8765
 
 let mainWindow = null
 let backendProcess = null
+
+// ── Settings persistence ──────────────────────────────────────
+const getSettingsPath = () => path.join(app.getPath('userData'), 'maiku-settings.json')
+
+function loadSettingsFromDisk() {
+  try {
+    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+function saveSettingsToDisk(data) {
+  fs.writeFileSync(getSettingsPath(), JSON.stringify(data, null, 2), 'utf-8')
+}
+
+ipcMain.handle('load-settings', () => loadSettingsFromDisk())
+ipcMain.handle('save-settings', (_, data) => { saveSettingsToDisk(data); return { ok: true } })
 
 function createWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize
@@ -94,6 +113,13 @@ app.whenReady().then(() => {
     createWindow()
   }
 
+  // Global hotkey: Ctrl+Alt+M → toggle overlay
+  globalShortcut.register('CommandOrControl+Alt+M', () => {
+    if (!mainWindow) return
+    if (mainWindow.isVisible()) mainWindow.hide()
+    else { mainWindow.show(); mainWindow.focus() }
+  })
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -106,4 +132,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   if (backendProcess) backendProcess.kill()
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })

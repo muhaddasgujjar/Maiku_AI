@@ -168,10 +168,9 @@ def _audio_callback(chunk: bytes) -> None:
     )
 
 
-# ── Document ingestion endpoint ───────────────────────────────
+# ── Document endpoints ────────────────────────────────────────
 @app.post('/documents')
 async def ingest_document(payload: dict):
-    """Ingest text content into the RAG vector store."""
     content = payload.get('content', '')
     doc_id = payload.get('id', str(uuid.uuid4()))
     metadata = payload.get('metadata', {})
@@ -181,6 +180,60 @@ async def ingest_document(payload: dict):
 
     rag.add_document(doc_id, content, metadata)
     return {'status': 'ok', 'doc_id': doc_id}
+
+
+@app.get('/documents')
+async def list_documents():
+    if rag._collection is None:
+        return {'documents': []}
+    try:
+        results = rag._collection.get(include=['metadatas'])
+        chunk_counts: dict[str, dict] = {}
+        for meta in (results.get('metadatas') or []):
+            doc_id = meta.get('doc_id', '')
+            if not doc_id:
+                continue
+            if doc_id not in chunk_counts:
+                chunk_counts[doc_id] = {'id': doc_id, 'label': meta.get('label', doc_id), 'chunks': 0}
+            chunk_counts[doc_id]['chunks'] += 1
+        return {'documents': list(chunk_counts.values())}
+    except Exception as e:
+        log.error('list_documents error: %s', e)
+        return {'documents': []}
+
+
+@app.delete('/documents/{doc_id}')
+async def delete_document(doc_id: str):
+    if rag._collection is None:
+        return {'error': 'RAG not initialized'}
+    try:
+        results = rag._collection.get(where={'doc_id': doc_id}, include=['metadatas'])
+        ids = results.get('ids', [])
+        if ids:
+            rag._collection.delete(ids=ids)
+        return {'status': 'ok', 'deleted': len(ids)}
+    except Exception as e:
+        log.error('delete_document error: %s', e)
+        return {'error': str(e)}
+
+
+# ── Runtime settings endpoint ─────────────────────────────────
+@app.post('/settings')
+async def update_settings(payload: dict):
+    """Update API key and model at runtime without restarting."""
+    api_key = payload.get('groq_api_key', '')
+    llm_model = payload.get('llm_model', '')
+
+    if api_key:
+        groq.api_key = api_key
+        groq._client = None  # force client re-init on next request
+
+    if llm_model:
+        import config as _cfg
+        _cfg.LLM_MODEL = llm_model
+
+    log.info('Settings updated via API (key=%s, model=%s)', bool(api_key), llm_model or 'unchanged')
+    return {'status': 'ok'}
 
 
 @app.get('/health')

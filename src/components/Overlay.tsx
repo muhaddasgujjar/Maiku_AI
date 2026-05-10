@@ -2,19 +2,38 @@ import { useRef } from 'react'
 import StatusBar from './StatusBar'
 import Transcript from './Transcript'
 import Suggestions from './Suggestions'
-import type { ConnectionStatus, TranscriptSegment, Suggestion } from '../types'
+import DocumentPanel from './DocumentPanel'
+import SettingsPanel from './SettingsPanel'
+import type {
+  ConnectionStatus, TabName, TranscriptSegment, Suggestion, AppSettings, DocEntry,
+} from '../types'
 
 interface Props {
   status: ConnectionStatus
   transcript: TranscriptSegment[]
   suggestions: Suggestion[]
   isListening: boolean
+  activeTab: TabName
+  settings: AppSettings
+  docs: DocEntry[]
+  backendUrl: string
   onToggleListening: () => void
   onClear: () => void
+  onTabChange: (tab: TabName) => void
+  onSaveSettings: (s: AppSettings) => Promise<void>
+  onDocsChange: () => void
 }
 
+const TABS: { id: TabName; label: string }[] = [
+  { id: 'listen', label: 'Listen' },
+  { id: 'docs', label: 'Docs' },
+  { id: 'settings', label: 'Settings' },
+]
+
 export default function Overlay({
-  status, transcript, suggestions, isListening, onToggleListening, onClear,
+  status, transcript, suggestions, isListening,
+  activeTab, settings, docs, backendUrl,
+  onToggleListening, onClear, onTabChange, onSaveSettings, onDocsChange,
 }: Props) {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
 
@@ -44,26 +63,60 @@ export default function Overlay({
     <div className="overlay" onMouseDown={handleMouseDown}>
       <StatusBar status={status} isListening={isListening} />
 
-      <div className="panel-section" data-no-drag>
-        <Suggestions suggestions={suggestions} />
+      {/* Tab bar */}
+      <div className="tab-bar" data-no-drag>
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="panel-section" data-no-drag>
-        <Transcript segments={transcript} />
-      </div>
+      {/* Tab content */}
+      <div className="tab-content" data-no-drag>
+        {activeTab === 'listen' && (
+          <>
+            <div className="panel-section">
+              <Suggestions suggestions={suggestions} />
+            </div>
+            <div className="panel-section">
+              <Transcript segments={transcript} />
+            </div>
+            <div className="control-bar">
+              <button
+                className={`btn-listen ${isListening ? 'active' : ''}`}
+                onClick={onToggleListening}
+                disabled={status !== 'connected'}
+                title={isListening ? 'Stop listening' : 'Start listening'}
+              >
+                {isListening ? 'Stop' : 'Listen'}
+              </button>
+              <button className="btn-clear" onClick={onClear} title="Clear session">
+                Clear
+              </button>
+            </div>
+          </>
+        )}
 
-      <div className="control-bar" data-no-drag>
-        <button
-          className={`btn-listen ${isListening ? 'active' : ''}`}
-          onClick={onToggleListening}
-          disabled={status !== 'connected'}
-          title={isListening ? 'Stop listening' : 'Start listening'}
-        >
-          {isListening ? '⏹ Stop' : '▶ Listen'}
-        </button>
-        <button className="btn-clear" onClick={onClear} title="Clear session">
-          Clear
-        </button>
+        {activeTab === 'docs' && (
+          <DocumentPanel
+            docs={docs}
+            backendUrl={backendUrl}
+            onDocsChange={onDocsChange}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsPanel
+            settings={settings}
+            backendUrl={backendUrl}
+            onSave={onSaveSettings}
+          />
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,7 @@
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
+export type TabName = 'listen' | 'docs' | 'settings'
+
 export interface TranscriptSegment {
   id: string
   text: string
@@ -12,6 +14,17 @@ export interface Suggestion {
   bullets: string[]
   context: string
   timestamp: number
+}
+
+export interface AppSettings {
+  groqApiKey?: string
+  llmModel?: string
+}
+
+export interface DocEntry {
+  id: string
+  label?: string
+  chunks: number
 }
 
 export type WsMessage =
@@ -29,6 +42,8 @@ declare global {
       getBackendUrl: () => Promise<string>
       moveWindow: (deltaX: number, deltaY: number) => void
       toggleVisibility: () => void
+      loadSettings: () => Promise<AppSettings>
+      saveSettings: (data: AppSettings) => Promise<{ ok: boolean }>
     }
   }
 }

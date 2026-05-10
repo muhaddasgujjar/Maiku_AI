@@ -8,7 +8,8 @@ from typing import Optional
 
 from groq import AsyncGroq
 
-from config import GROQ_API_KEY, STT_MODEL, LLM_MODEL
+import config as _config
+from config import GROQ_API_KEY, STT_MODEL
 
 log = logging.getLogger('maiku.groq')
 
@@ -76,7 +77,7 @@ class GroqClient:
 
         try:
             response = await self.client.chat.completions.create(
-                model=LLM_MODEL,
+                model=_config.LLM_MODEL,
                 messages=[
                     {'role': 'system', 'content': SYSTEM_PROMPT},
                     {'role': 'user', 'content': user_message},

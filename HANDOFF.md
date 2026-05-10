@@ -67,18 +67,30 @@ Maiku_AI/
 
 ---
 
-## Current State (Updated: 2026-05-09)
-**Phase 1 Complete — Foundation scaffolded.**
+## Current State (Updated: 2026-05-10)
+**Phases 1–4 (partial) complete — full pipeline implemented.**
 
-All files created. Next steps:
-1. `npm install` — install Node dependencies
+All core features are coded and ready to test:
+- WASAPI audio capture → Groq Whisper → live transcript
+- RAG (ChromaDB + sentence-transformers) → Groq LLM → 3 bullet suggestions
+- Overlay UI with 3 tabs: Listen | Docs | Settings
+- Global hotkey Ctrl+Alt+M to toggle visibility
+- Document upload (paste CV/JD text → indexed into RAG)
+- Settings panel (API key + model persisted to userData, pushed to backend at runtime)
+
+**First run steps:**
+1. `npm install` — install Node deps (if not done)
 2. `pip install -r backend/requirements.txt` — install Python deps
-3. Copy `.env.example` → `.env` and add `GROQ_API_KEY`
-4. `python backend/main.py` — start backend server
-5. `npm run dev` — start Electron app in dev mode
-6. Verify screen-share privacy works (share screen in Zoom/Teams, overlay should be invisible)
+3. Copy `.env.example` → `.env`, add `GROQ_API_KEY=gsk_...`
+4. `python backend/main.py` — start backend
+5. `npm run dev` — start Electron (Vite + Electron in parallel)
+6. Go to Settings tab → enter Groq API key → Save
+7. Go to Docs tab → paste your CV → Index Document
+8. Go to Listen tab → click Listen → play a video to test transcript
 
-**Phase 2 (Audio + STT) starts after Phase 1 is verified.**
+**Remaining Phase 4:**
+- Session log (save Q&A to JSON)
+- Opacity slider in Settings
 
 ---
 

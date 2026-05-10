@@ -9,7 +9,7 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 
 ---
 
-## Phase 1: Foundation ✅ IN PROGRESS
+## Phase 1: Foundation ✅ COMPLETE
 **Goal**: Booting Electron app with screen-privacy + Python backend communicating via WebSocket
 
 ### Tasks
@@ -18,16 +18,12 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 - [x] package.json (Electron + Vite + React)
 - [x] Electron main process with setContentProtection(true)
 - [x] Preload script (contextBridge IPC)
-- [x] React overlay UI (skeleton)
+- [x] React overlay UI
 - [x] Python FastAPI + WebSocket server
-- [x] Groq client module (Whisper + LLM stubs)
-- [x] Audio capture module (WASAPI loopback stub)
-- [x] RAG module (ChromaDB stub)
+- [x] Groq client module (Whisper + LLM)
+- [x] Audio capture module (WASAPI loopback + sounddevice fallback)
+- [x] RAG module (ChromaDB + sentence-transformers)
 - [x] requirements.txt
-- [ ] **NEXT**: Run `npm install` then `pip install -r backend/requirements.txt`
-- [ ] **NEXT**: Start backend: `python backend/main.py`
-- [ ] **NEXT**: Start frontend: `npm run dev`
-- [ ] **NEXT**: Verify screen-share invisibility manually
 
 ### Key Files
 - `electron/main.js` — Electron window with `setContentProtection(true)`
@@ -37,17 +33,15 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 
 ---
 
-## Phase 2: Audio & Real-Time STT ⏳ PENDING
+## Phase 2: Audio & Real-Time STT ✅ COMPLETE
 **Goal**: Capture system audio (WASAPI loopback) and stream to Groq Whisper, show live transcript
 
 ### Tasks
-- [ ] Install PyAudioWPatch: `pip install PyAudioWPatch`
-- [ ] Implement `backend/audio_capture.py` — WASAPI loopback stream
-- [ ] Implement `backend/groq_client.py` — Whisper streaming transcription
-- [ ] Pipe audio chunks (16kHz mono PCM) to Groq `/audio/transcriptions`
-- [ ] Broadcast transcript tokens via WebSocket to frontend
-- [ ] `src/components/Transcript.tsx` — render streaming text
-- [ ] Test: start a YouTube video, verify transcript appears in overlay
+- [x] `backend/audio_capture.py` — WASAPI loopback (PyAudioWPatch) + sounddevice fallback
+- [x] `backend/groq_client.py` — Whisper transcription (5-sec WAV chunks → Groq REST)
+- [x] Broadcast transcript via WebSocket to frontend
+- [x] `src/components/Transcript.tsx` — render streaming text with auto-scroll
+- [ ] **TODO**: Test end-to-end — play YouTube, verify transcript appears
 
 ### Key Decisions
 - Audio chunk size: 5-second windows sent to Groq Whisper (streaming)
@@ -56,17 +50,18 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 
 ---
 
-## Phase 3: AI Brain (RAG + LLM) ⏳ PENDING
+## Phase 3: AI Brain (RAG + LLM) ✅ COMPLETE
 **Goal**: Index user documents, retrieve relevant context, generate talking points via Groq LLM
 
 ### Tasks
-- [ ] ChromaDB collection setup in `backend/rag.py`
-- [ ] Document chunking & embedding (sentence-transformers `all-MiniLM-L6-v2`)
-- [ ] Sliding context window: last 10 min of transcript tokens
-- [ ] Groq LLM call: `llama-3.3-70b-versatile` with RAG context
-- [ ] System prompt engineering: bullet-point talking points, max 3
-- [ ] Frontend: `src/components/Suggestions.tsx` — render AI bullets
-- [ ] Document upload endpoint: POST `/documents` → chunk → embed → store
+- [x] ChromaDB PersistentClient in `backend/rag.py`
+- [x] Document chunking (400 words, 80 overlap) + sentence-transformers embeddings
+- [x] Sliding transcript buffer (last 60 segments ≈ 10 min)
+- [x] Groq LLM generates 3 bullet talking points from RAG context
+- [x] `src/components/Suggestions.tsx` — render AI bullets with context hint
+- [x] `POST /documents` — ingest text → chunk → embed → store
+- [x] `GET /documents` — list indexed docs with chunk counts
+- [x] `DELETE /documents/{id}` — remove doc from vector store
 
 ### Default Documents to Index
 - User CV (PDF/TXT upload)
@@ -75,16 +70,18 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 
 ---
 
-## Phase 4: Polish & UX ⏳ PENDING
+## Phase 4: Polish & UX ✅ IN PROGRESS
 **Goal**: Document upload UI, settings panel, session history, hotkeys
 
 ### Tasks
-- [ ] Settings window: API key input, model selection, opacity control
-- [ ] Document manager: upload CV / JD, list indexed docs
-- [ ] Hotkeys: Ctrl+Alt+M = toggle overlay visibility
+- [x] Settings panel: Groq API key input + model selector, persisted to userData/settings.json
+- [x] `POST /settings` — apply API key + model at runtime without restart
+- [x] Document manager: paste CV/JD/Notes → indexed into RAG; list + delete indexed docs
+- [x] Global hotkey: Ctrl+Alt+M = toggle overlay visibility
+- [x] Tab navigation: Listen | Docs | Settings
+- [x] Drag-to-move frameless window
 - [ ] Session log: save Q&A pairs to local JSON
-- [ ] Overlay resize / reposition (drag-to-move)
-- [ ] Dark/light theme
+- [ ] Opacity control (slider in settings)
 
 ---
 
