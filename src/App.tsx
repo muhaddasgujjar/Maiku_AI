@@ -26,8 +26,8 @@ export default function App() {
     window.maiku?.loadSettings().then((saved) => {
       if (saved && Object.keys(saved).length > 0) {
         setSettings(saved)
-        // Push saved key to backend if it's already running
         if (saved.groqApiKey) {
+          // Push saved key to backend (may already be running)
           fetch(`${BACKEND_HTTP}/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -35,10 +35,16 @@ export default function App() {
               groq_api_key: saved.groqApiKey,
               llm_model: saved.llmModel,
             }),
-          }).catch(() => { /* backend may not be up yet */ })
+          }).catch(() => { /* backend may not be up yet — it will read key from env */ })
+        } else {
+          // First run: no API key → guide user to Settings
+          setActiveTab('settings')
         }
+      } else {
+        // No settings file at all → first run
+        setActiveTab('settings')
       }
-    }).catch(() => { /* not in Electron context */ })
+    }).catch(() => { /* not in Electron context (browser dev) */ })
   }, [])
 
   // ── WebSocket connection ───────────────────────────────────────

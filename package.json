@@ -7,7 +7,8 @@
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "build": "vite build && electron-builder",
+    "build:vite": "vite build",
+    "build:win": "npm run build:vite && electron-builder --win",
     "preview": "vite preview"
   },
   "keywords": ["interview", "copilot", "ai", "overlay"],
@@ -25,23 +26,54 @@
     "wait-on": "^8.0.1"
   },
   "dependencies": {
+    "electron-updater": "^6.3.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "build": {
     "appId": "com.maiku.ai",
     "productName": "Maiku AI",
+    "copyright": "Copyright © 2026 Muhammad Muhaddas",
     "directories": {
       "output": "dist-electron"
     },
-    "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
-    },
     "files": [
       "dist/**/*",
-      "electron/**/*",
-      "backend/**/*"
-    ]
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/backend",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Maiku AI",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "license": "LICENSE.txt",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "MuhammadMuhaddas",
+      "repo": "maiku-ai",
+      "private": false
+    }
   }
 }

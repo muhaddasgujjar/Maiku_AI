@@ -1,10 +1,11 @@
-const { app, BrowserWindow, ipcMain, screen, globalShortcut } = require('electron')
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const http = require('http')
 const { spawn } = require('child_process')
 
 const isDev = process.env.NODE_ENV !== 'production'
-const BACKEND_PORT = process.env.BACKEND_PORT || 8765
+const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || '8765', 10)
 
 let mainWindow = null
 let backendProcess = null
@@ -27,6 +28,7 @@ function saveSettingsToDisk(data) {
 ipcMain.handle('load-settings', () => loadSettingsFromDisk())
 ipcMain.handle('save-settings', (_, data) => { saveSettingsToDisk(data); return { ok: true } })
 
+// ── Window creation ───────────────────────────────────────────
 function createWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize
 
@@ -48,9 +50,9 @@ function createWindow() {
     },
   })
 
-  // THE KEY FEATURE: hide this window from screen sharing / capture
-  // On Windows: calls SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
-  // On macOS: sets NSWindow sharingType to NSWindowSharingNone
+  // THE KEY FEATURE: hide from screen sharing / capture
+  // Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
+  // macOS: NSWindowSharingNone
   mainWindow.setContentProtection(true)
 
   if (isDev) {
@@ -59,61 +61,103 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  // Allow dragging the frameless window via IPC
   ipcMain.on('window-move', (_, { deltaX, deltaY }) => {
     if (!mainWindow) return
     const [x, y] = mainWindow.getPosition()
     mainWindow.setPosition(x + deltaX, y + deltaY)
   })
 
-  // Toggle visibility hotkey handler
   ipcMain.on('toggle-visibility', () => {
     if (!mainWindow) return
-    if (mainWindow.isVisible()) {
-      mainWindow.hide()
-    } else {
-      mainWindow.show()
-    }
+    if (mainWindow.isVisible()) mainWindow.hide()
+    else mainWindow.show()
   })
 
-  // Relay backend connection status to renderer
   ipcMain.handle('get-backend-url', () => `ws://localhost:${BACKEND_PORT}/ws`)
 }
 
-function startBackend() {
-  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3'
-  const backendPath = isDev
-    ? path.join(__dirname, '../backend/main.py')
-    : path.join(process.resourcesPath, 'backend/main.py')
+// ── Backend launch ────────────────────────────────────────────
+function getBackendEnv() {
+  const settings = loadSettingsFromDisk()
+  const userData = app.getPath('userData')
+  return {
+    ...process.env,
+    BACKEND_PORT: String(BACKEND_PORT),
+    CHROMA_PERSIST_DIR: path.join(userData, 'chroma_db'),
+    // Model cache inside userData so it survives app moves
+    HF_HOME: path.join(userData, 'models'),
+    // Inject saved API key & model into backend env
+    ...(settings.groqApiKey ? { GROQ_API_KEY: settings.groqApiKey } : {}),
+    ...(settings.llmModel ? { LLM_MODEL: settings.llmModel } : {}),
+  }
+}
 
-  backendProcess = spawn(pythonCmd, [backendPath], {
-    env: { ...process.env, BACKEND_PORT: String(BACKEND_PORT) },
+function startBackend() {
+  let cmd, args
+
+  if (isDev) {
+    // Dev: run via Python interpreter
+    cmd = process.platform === 'win32' ? 'python' : 'python3'
+    args = [path.join(__dirname, '../backend/main.py')]
+  } else {
+    // Production: use PyInstaller-built exe bundled in extraResources
+    const exeName = process.platform === 'win32' ? 'maiku_backend.exe' : 'maiku_backend'
+    cmd = path.join(process.resourcesPath, 'backend', 'maiku_backend', exeName)
+    args = []
+  }
+
+  backendProcess = spawn(cmd, args, {
+    env: getBackendEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 
-  backendProcess.stdout.on('data', (data) => {
-    console.log('[backend]', data.toString().trim())
-  })
+  backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString().trim()))
+  backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString().trim()))
+  backendProcess.on('close', (code) => console.log(`[backend] exited with code ${code}`))
+}
 
-  backendProcess.stderr.on('data', (data) => {
-    console.error('[backend]', data.toString().trim())
-  })
+// ── Health poll — wait until backend responds ─────────────────
+function pollHealth(maxMs = 60000) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + maxMs
 
-  backendProcess.on('close', (code) => {
-    console.log(`[backend] exited with code ${code}`)
+    function attempt() {
+      if (Date.now() > deadline) { resolve(false); return }
+
+      const req = http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
+        resolve(res.statusCode === 200)
+      })
+      req.on('error', () => setTimeout(attempt, 800))
+      req.setTimeout(800, () => { req.destroy(); setTimeout(attempt, 800) })
+    }
+
+    attempt()
   })
 }
 
-app.whenReady().then(() => {
-  // Only auto-spawn backend in production — in dev, start it manually
-  if (!isDev) {
-    startBackend()
-    setTimeout(createWindow, 1500)
-  } else {
+// ── App lifecycle ─────────────────────────────────────────────
+app.whenReady().then(async () => {
+  if (isDev) {
+    // Dev: user starts backend manually; window opens immediately
     createWindow()
+  } else {
+    // Production: spawn backend, wait for it, then show window
+    startBackend()
+    const ready = await pollHealth(60000)
+    if (ready) {
+      createWindow()
+    } else {
+      dialog.showErrorBox(
+        'Maiku AI — Backend failed to start',
+        'The Python backend did not respond within 60 seconds.\n\n' +
+        'Check that your antivirus is not blocking maiku_backend.exe.\n' +
+        'Re-install the app if the problem persists.'
+      )
+      app.quit()
+      return
+    }
   }
 
-  // Global hotkey: Ctrl+Alt+M → toggle overlay
   globalShortcut.register('CommandOrControl+Alt+M', () => {
     if (!mainWindow) return
     if (mainWindow.isVisible()) mainWindow.hide()
