@@ -85,16 +85,34 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 
 ---
 
-## Phase 5: Production ⏳ PENDING
+## Phase 5: Production ✅ IN PROGRESS
 **Goal**: Packaged installer, auto-update, cross-platform, paid API upgrade path
 
 ### Tasks
-- [ ] `electron-builder` config for Windows NSIS installer
-- [ ] Auto-update via electron-updater
-- [ ] macOS: `setContentProtection` already works (maps to NSWindow)
-- [ ] Linux: `setContentProtection` — limited support, may need compositor
+- [x] `electron-builder` NSIS config (one-click off, desktop/start-menu shortcuts, custom dir)
+- [x] `electron-updater` in dependencies; GitHub publish config in package.json
+- [x] `backend/maiku_backend.spec` — PyInstaller one-dir spec
+- [x] `build.ps1` — full build script (PyInstaller → copy → Vite → electron-builder)
+- [x] Production backend: launches `resources/backend/maiku_backend/maiku_backend.exe`
+- [x] Health-poll startup (60s timeout, error dialog on failure)
+- [x] userData paths: CHROMA_PERSIST_DIR + HF_HOME → `%APPDATA%\Maiku AI\`
+- [x] Auto-injects saved API key into backend env at launch
+- [x] First-run auto-redirect to Settings tab
+- [ ] **BLOCKER**: `node_modules/electron` binary missing — run `npm install` in fresh terminal
+- [ ] Create `assets/icon.ico` (256×256 ICO) for installer icon
+- [ ] Push to GitHub → enable auto-update via electron-updater releases
+- [ ] macOS / Linux testing
 - [ ] Upgrade path: swap Groq free → paid when budget available
-- [ ] Add `gpt-4o-mini` as optional LLM backend
+
+### To build the installer
+```powershell
+# 1. Fix Electron binary (one-time — see HANDOFF.md)
+npm install
+
+# 2. Run full build
+.\build.ps1
+# Output: dist-electron\Maiku AI Setup 0.1.0.exe
+```
 
 ---
 
