@@ -1,0 +1,32 @@
+@echo off
+title Maiku AI
+
+echo.
+echo  ███╗   ███╗ █████╗ ██╗██╗  ██╗██╗   ██╗     █████╗ ██╗
+echo  ████╗ ████║██╔══██╗██║██║ ██╔╝██║   ██║    ██╔══██╗██║
+echo  ██╔████╔██║███████║██║█████╔╝ ██║   ██║    ███████║██║
+echo  ██║╚██╔╝██║██╔══██║██║██╔═██╗ ██║   ██║    ██╔══██║██║
+echo  ██║ ╚═╝ ██║██║  ██║██║██║  ██╗╚██████╔╝    ██║  ██║██║
+echo  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝╚═╝
+echo.
+echo  Interview Copilot — Invisible Overlay
+echo  ----------------------------------------
+
+if not exist .env (
+    echo [!] .env file not found. Copying from .env.example...
+    copy .env.example .env
+    echo [!] Please edit .env and add your GROQ_API_KEY, then restart.
+    pause
+    exit /b 1
+)
+
+echo [1/2] Starting Python backend...
+start "Maiku Backend" /min cmd /c "python backend/main.py & pause"
+
+echo [2/2] Waiting 2s for backend, then launching Electron...
+timeout /t 2 /nobreak >nul
+
+echo Starting Maiku AI app...
+npm run dev
+
+pause

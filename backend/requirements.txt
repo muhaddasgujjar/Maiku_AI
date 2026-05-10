@@ -1,0 +1,29 @@
+# Maiku AI — Python backend dependencies
+# Install: pip install -r requirements.txt
+
+# Web server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=14.0
+
+# Groq API (STT + LLM)
+groq>=0.13.0
+
+# RAG — vector database (local, no cloud needed)
+chromadb>=0.6.0
+
+# RAG — local embeddings (CPU, ~90MB model download on first run)
+sentence-transformers>=3.3.0
+
+# Audio capture — WASAPI loopback on Windows
+# PyAudioWPatch is a patched PyAudio with loopback support
+PyAudioWPatch>=0.2.12.6
+
+# Fallback audio (cross-platform, may need virtual cable on Windows for loopback)
+sounddevice>=0.5.1
+
+# Environment variable loading
+python-dotenv>=1.0.1
+
+# Utilities
+numpy>=2.0.0
