@@ -1,5 +1,7 @@
 """Generate assets/icon.ico for Maiku AI installer."""
+import io
 import os
+import struct
 from PIL import Image, ImageDraw
 
 BG   = (15, 23, 42, 255)    # dark navy
@@ -63,18 +65,49 @@ def make_icon(size: int) -> Image.Image:
 
     return img
 
+def build_ico(sizes: list[int]) -> bytes:
+    """
+    Build a multi-resolution ICO file from scratch.
+    Stores each size as a PNG frame (valid per ICO spec for sizes >= 16).
+    Pillow's ICO writer is unreliable for multi-res output, so we write the
+    binary format directly:  6-byte header  +  N×16-byte directory  +  PNG data.
+    """
+    frames_png: list[bytes] = []
+    for s in sizes:
+        img = make_icon(s).convert("RGBA")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        frames_png.append(buf.getvalue())
+
+    n = len(sizes)
+    data_start = 6 + 16 * n        # byte offset of first image blob
+
+    # ICONDIR header (6 bytes)
+    header = struct.pack("<HHH", 0, 1, n)
+
+    # ICONDIRENTRY array (16 bytes each)
+    directory = b""
+    offset = data_start
+    for s, png in zip(sizes, frames_png):
+        w = 0 if s >= 256 else s   # 0 encodes 256 in ICO spec
+        h = 0 if s >= 256 else s
+        directory += struct.pack("<BBBBHHII", w, h, 0, 0, 1, 32, len(png), offset)
+        offset += len(png)
+
+    return header + directory + b"".join(frames_png)
+
+
 def main():
     os.makedirs("assets", exist_ok=True)
+
     sizes = [16, 32, 48, 64, 128, 256]
-    frames = [make_icon(s) for s in sizes]
-    frames[0].save(
-        "assets/icon.ico",
-        format="ICO",
-        sizes=[(s, s) for s in sizes],
-        append_images=frames[1:],
-    )
-    frames[-1].save("assets/icon.png")
-    print(f"Created assets/icon.ico  (sizes: {sizes})")
+    ico_bytes = build_ico(sizes)
+    with open("assets/icon.ico", "wb") as f:
+        f.write(ico_bytes)
+
+    make_icon(256).save("assets/icon.png")
+
+    print(f"Created assets/icon.ico  ({len(sizes)} sizes: {sizes}, {len(ico_bytes):,} bytes)")
     print("Created assets/icon.png  (256px preview)")
 
 if __name__ == "__main__":
