@@ -2,11 +2,8 @@
 # Build: cd backend && pyinstaller maiku_backend.spec --clean
 # Output: backend/dist/maiku_backend/  (one-dir bundle)
 
-import sys
 from pathlib import Path
 import chromadb
-
-block_cipher = None
 
 # Collect chromadb's migration SQL files (required at runtime)
 chroma_path = Path(chromadb.__file__).parent
@@ -88,11 +85,10 @@ a = Analysis(
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
@@ -104,7 +100,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # no console window
+    console=True,   # keep console for log visibility in production
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
