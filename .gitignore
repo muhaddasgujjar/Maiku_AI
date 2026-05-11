@@ -2,9 +2,20 @@ node_modules/
 dist/
 dist-electron/
 .env
+# Python build artifacts
 backend/chroma_db/
+backend/backend/
+backend/build/
 backend/__pycache__/
 backend/*.pyc
+# Electron packager output
+resources/
+# Media / scratch files
+*.jpeg
+*.jpg
+*.png
+*.docx
 *.log
 .DS_Store
 Thumbs.db
+.claude/

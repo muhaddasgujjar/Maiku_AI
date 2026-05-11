@@ -6,8 +6,8 @@ import type {
 } from './types'
 
 const RECONNECT_DELAY_MS = 3000
-const BACKEND_WS = 'ws://localhost:8765/ws'
-const BACKEND_HTTP = 'http://localhost:8765'
+const BACKEND_WS = 'ws://127.0.0.1:8765/ws'
+const BACKEND_HTTP = 'http://127.0.0.1:8765'
 
 export default function App() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
@@ -138,6 +138,11 @@ export default function App() {
     sendCommand({ type: 'clear_session' })
   }, [sendCommand])
 
+  const forceAnswer = useCallback(() => {
+    setAnswerError(null)
+    sendCommand({ type: 'force_answer' })
+  }, [sendCommand])
+
   // ── Document list ──────────────────────────────────────────────
   const fetchDocs = useCallback(async () => {
     try {
@@ -188,6 +193,7 @@ export default function App() {
       docs={docs}
       backendUrl={BACKEND_HTTP}
       onToggleListening={toggleListening}
+      onForceAnswer={forceAnswer}
       onClear={clearSession}
       onTabChange={setActiveTab}
       onSaveSettings={handleSaveSettings}

@@ -17,20 +17,17 @@ const STATUS_COLORS: Record<ConnectionStatus, string> = {
 interface Props {
   status: ConnectionStatus
   isListening: boolean
-  layoutIcon: string
-  layoutTitle: string
+  layoutLabel: string
   onCycleLayout: () => void
   onClose: () => void
 }
 
-export default function StatusBar({ status, isListening, layoutIcon, layoutTitle, onCycleLayout, onClose }: Props) {
+export default function StatusBar({ status, isListening, layoutLabel, onCycleLayout, onClose }: Props) {
   return (
     <div className="status-bar">
       <span className="app-title">Maiku AI</span>
       <div className="status-indicators">
-        {isListening && (
-          <span className="listening-badge">● REC</span>
-        )}
+        {isListening && <span className="listening-badge">● REC</span>}
         <span
           className="status-dot"
           style={{ color: STATUS_COLORS[status] }}
@@ -39,18 +36,13 @@ export default function StatusBar({ status, isListening, layoutIcon, layoutTitle
           ●
         </span>
         <span className="status-label">{STATUS_LABELS[status]}</span>
-        <button
-          className="btn-layout"
-          onClick={onCycleLayout}
-          title={layoutTitle}
-          data-no-drag
-        >
-          {layoutIcon}
+        <button className="btn-layout" onClick={onCycleLayout} title="Toggle layout" data-no-drag>
+          {layoutLabel}
         </button>
         <button
           className="btn-close"
           onClick={onClose}
-          title="Hide overlay (Ctrl+Shift+M to show again)"
+          title="Hide (Ctrl+Shift+M to restore)"
           data-no-drag
         >
           ✕

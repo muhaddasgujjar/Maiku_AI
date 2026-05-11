@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / '.env')
 
 GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
-BACKEND_HOST: str = os.getenv('BACKEND_HOST', 'localhost')
+BACKEND_HOST: str = os.getenv('BACKEND_HOST', '127.0.0.1')
 BACKEND_PORT: int = int(os.getenv('BACKEND_PORT', '8765'))
 
 STT_MODEL: str = os.getenv('STT_MODEL', 'whisper-large-v3')

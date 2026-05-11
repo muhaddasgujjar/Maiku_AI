@@ -11,6 +11,7 @@ from typing import Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from config import BACKEND_HOST, BACKEND_PORT
 from groq_client import GroqClient
@@ -29,21 +30,21 @@ groq = GroqClient()
 audio = AudioCapture()
 rag = RAGPipeline()
 
-# Sliding transcript buffer (last 10 minutes worth, roughly 1500 tokens)
+# Sliding transcript buffer (last 10 minutes worth)
 transcript_buffer: list[str] = []
 MAX_BUFFER_SEGMENTS = 60  # ~10 min at 5-sec chunks
 
-# Time-based suggestion throttle — prevents flooding the LLM
+# Time-based suggestion throttle
 _last_suggestion_at: float = 0.0
 QUESTION_INTERVAL_SEC = 2.0    # near-instant when a question is detected
-IDLE_INTERVAL_SEC     = 12.0   # periodic refresh when no clear question
+IDLE_INTERVAL_SEC     = 12.0   # periodic refresh for non-question speech
 
 # Question-word patterns that signal the interviewer is asking something
 _QUESTION_WORDS = (
     'what', 'how', 'why', 'when', 'where', 'who', 'which',
     'tell me', 'describe', 'explain', 'walk me', 'give me',
     'can you', 'could you', 'would you', 'have you', 'do you',
-    'are you', 'is there', 'show me',
+    'are you', 'is there', 'show me', 'talk about', 'share',
 )
 
 # Stored event loop reference for thread-safe audio callbacks
@@ -71,7 +72,7 @@ async def broadcast(msg: dict) -> None:
 
 # ── Audio → STT → LLM pipeline ────────────────────────────────
 async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
-    """Transcribe one audio chunk and optionally generate suggestions."""
+    """Transcribe one audio chunk and optionally generate an answer."""
     global _last_suggestion_at
     try:
         text = await groq.transcribe(chunk)
@@ -93,16 +94,12 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
             },
         })
 
-        # Fire as soon as we have any transcript.
-        # Questions (detected by ? or question-opening words) get a fast 2s
-        # response; idle speech is refreshed every 12s.
-        if transcript_buffer:
-            is_question = _is_question(text)
-            min_interval = QUESTION_INTERVAL_SEC if is_question else IDLE_INTERVAL_SEC
-            if (now - _last_suggestion_at) >= min_interval:
-                _last_suggestion_at = now
-                log.info('Triggering answer (question=%s): %s', is_question, text[:60])
-                await generate_answer()
+        is_question = _is_question(text)
+        min_interval = QUESTION_INTERVAL_SEC if is_question else IDLE_INTERVAL_SEC
+        if (now - _last_suggestion_at) >= min_interval:
+            _last_suggestion_at = now
+            log.info('Triggering answer (question=%s): %.60s', is_question, text)
+            asyncio.ensure_future(generate_answer())
 
     except Exception as e:
         log.error('process_audio_chunk error: %s', e)
@@ -110,10 +107,14 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
 
 
 async def generate_answer() -> None:
-    """Run RAG + LLM to produce a full spoken answer for the latest question."""
+    """Run RAG + LLM and broadcast the full spoken answer."""
     await broadcast({'type': 'generating'})
     try:
-        recent_text = ' '.join(transcript_buffer[-3:])
+        if not groq.api_key:
+            await broadcast({'type': 'error', 'message': 'Groq API key not set. Go to Settings and enter your key.'})
+            return
+
+        recent_text = ' '.join(transcript_buffer[-4:])
         rag_chunks = rag.query(recent_text, n_results=4)
         answer, question = await groq.generate_answer(recent_text, rag_chunks)
 
@@ -127,12 +128,12 @@ async def generate_answer() -> None:
                     'timestamp': asyncio.get_running_loop().time(),
                 },
             })
-            log.info('Answer generated (%d chars) for: %s', len(answer), question[:60])
+            log.info('Answer generated (%d chars) for: %.60s', len(answer), question)
         else:
-            await broadcast({'type': 'error', 'message': 'LLM returned an empty response. Check your Groq API key in Settings.'})
+            await broadcast({'type': 'error', 'message': 'LLM returned empty. Check your Groq API key in Settings.'})
     except Exception as e:
         log.error('generate_answer error: %s', e)
-        await broadcast({'type': 'error', 'message': f'Answer generation failed: {e}'})
+        await broadcast({'type': 'error', 'message': f'Answer failed: {e}'})
 
 
 # ── Lifespan ──────────────────────────────────────────────────
@@ -142,6 +143,10 @@ async def lifespan(_: FastAPI):
     _event_loop = asyncio.get_running_loop()
     log.info('Maiku AI backend starting on %s:%d', BACKEND_HOST, BACKEND_PORT)
     rag.initialize()
+    if rag._collection is None:
+        log.warning('RAG pipeline NOT available — document context disabled')
+    else:
+        log.info('RAG pipeline ready')
     yield
     audio.stop()
     log.info('Maiku AI backend stopped')
@@ -181,9 +186,19 @@ async def websocket_endpoint(ws: WebSocket):
                 log.info('Audio capture stopped')
 
             elif cmd == 'clear_session':
+                global _last_suggestion_at
                 transcript_buffer.clear()
                 _last_suggestion_at = 0.0
                 log.info('Session cleared')
+
+            elif cmd == 'force_answer':
+                # Manual trigger from UI button — ignores throttle
+                if transcript_buffer:
+                    _last_suggestion_at = asyncio.get_running_loop().time()
+                    asyncio.ensure_future(generate_answer())
+                    log.info('Force-answer triggered via UI')
+                else:
+                    await broadcast({'type': 'error', 'message': 'No transcript yet — start listening first.'})
 
     except WebSocketDisconnect:
         clients.discard(ws)
@@ -207,21 +222,32 @@ def _audio_callback(chunk: bytes) -> None:
 # ── Document endpoints ────────────────────────────────────────
 @app.post('/documents')
 async def ingest_document(payload: dict):
-    content = payload.get('content', '')
-    doc_id = payload.get('id', str(uuid.uuid4()))
+    if rag._collection is None:
+        return JSONResponse(
+            status_code=503,
+            content={'error': 'RAG pipeline not ready. Install chromadb and sentence-transformers, then restart.'},
+        )
+
+    content = payload.get('content', '').strip()
+    if not content:
+        return JSONResponse(status_code=400, content={'error': 'No content provided'})
+
+    doc_id = payload.get('id') or str(uuid.uuid4())
     metadata = payload.get('metadata', {})
 
-    if not content:
-        return {'error': 'No content provided'}
-
-    rag.add_document(doc_id, content, metadata)
-    return {'status': 'ok', 'doc_id': doc_id}
+    try:
+        rag.add_document(doc_id, content, metadata)
+        log.info('Document indexed: %s (%d chars)', doc_id, len(content))
+        return {'status': 'ok', 'doc_id': doc_id}
+    except Exception as e:
+        log.error('ingest_document error: %s', e)
+        return JSONResponse(status_code=500, content={'error': str(e)})
 
 
 @app.get('/documents')
 async def list_documents():
     if rag._collection is None:
-        return {'documents': []}
+        return {'documents': [], 'rag_ready': False}
     try:
         results = rag._collection.get(include=['metadatas'])
         chunk_counts: dict[str, dict] = {}
@@ -230,18 +256,22 @@ async def list_documents():
             if not doc_id:
                 continue
             if doc_id not in chunk_counts:
-                chunk_counts[doc_id] = {'id': doc_id, 'label': meta.get('label', doc_id), 'chunks': 0}
+                chunk_counts[doc_id] = {
+                    'id': doc_id,
+                    'label': meta.get('label', doc_id),
+                    'chunks': 0,
+                }
             chunk_counts[doc_id]['chunks'] += 1
-        return {'documents': list(chunk_counts.values())}
+        return {'documents': list(chunk_counts.values()), 'rag_ready': True}
     except Exception as e:
         log.error('list_documents error: %s', e)
-        return {'documents': []}
+        return {'documents': [], 'rag_ready': True}
 
 
 @app.delete('/documents/{doc_id}')
 async def delete_document(doc_id: str):
     if rag._collection is None:
-        return {'error': 'RAG not initialized'}
+        return JSONResponse(status_code=503, content={'error': 'RAG not initialized'})
     try:
         results = rag._collection.get(where={'doc_id': doc_id}, include=['metadatas'])
         ids = results.get('ids', [])
@@ -250,7 +280,7 @@ async def delete_document(doc_id: str):
         return {'status': 'ok', 'deleted': len(ids)}
     except Exception as e:
         log.error('delete_document error: %s', e)
-        return {'error': str(e)}
+        return JSONResponse(status_code=500, content={'error': str(e)})
 
 
 # ── Runtime settings endpoint ─────────────────────────────────
@@ -274,7 +304,11 @@ async def update_settings(payload: dict):
 
 @app.get('/health')
 async def health():
-    return {'status': 'ok', 'groq_configured': bool(groq.api_key)}
+    return {
+        'status': 'ok',
+        'groq_configured': bool(groq.api_key),
+        'rag_ready': rag._collection is not None,
+    }
 
 
 # ── Entry point ───────────────────────────────────────────────

@@ -20,6 +20,7 @@ interface Props {
   docs: DocEntry[]
   backendUrl: string
   onToggleListening: () => void
+  onForceAnswer: () => void
   onClear: () => void
   onTabChange: (tab: TabName) => void
   onSaveSettings: (s: AppSettings) => Promise<void>
@@ -38,24 +39,25 @@ type LayoutMode = 'normal' | 'compact' | 'answer-only'
 export default function Overlay({
   status, transcript, suggestions, isListening, isGenerating, answerError,
   activeTab, settings, docs, backendUrl,
-  onToggleListening, onClear, onTabChange, onSaveSettings, onDocsChange, onSaveSession,
+  onToggleListening, onForceAnswer, onClear, onTabChange,
+  onSaveSettings, onDocsChange, onSaveSession,
 }: Props) {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [layout, setLayout] = useState<LayoutMode>('normal')
 
   const cycleLayout = () => {
-    const next: LayoutMode = layout === 'normal' ? 'compact' : layout === 'compact' ? 'answer-only' : 'normal'
+    const next: LayoutMode =
+      layout === 'normal' ? 'compact' : layout === 'compact' ? 'answer-only' : 'normal'
     setLayout(next)
     window.maiku?.resizeWindow(next)
   }
 
-  const layoutIcon = layout === 'normal' ? '⊡' : layout === 'compact' ? '⊟' : '⊞'
-  const layoutTitle = layout === 'normal' ? 'Compact mode' : layout === 'compact' ? 'Answer-only mode' : 'Full mode'
+  const layoutLabel = layout === 'normal' ? 'Compact' : layout === 'compact' ? 'Answer only' : 'Full'
 
   const handleSave = async () => {
     const ok = await onSaveSession()
-    setSaveMsg(ok ? 'Saved' : 'Failed')
+    setSaveMsg(ok ? 'Saved!' : 'Failed')
     setTimeout(() => setSaveMsg(null), 2000)
   }
 
@@ -70,13 +72,11 @@ export default function Overlay({
       dragStart.current = { x: ev.screenX, y: ev.screenY }
       window.maiku?.moveWindow(dx, dy)
     }
-
     const onUp = () => {
       dragStart.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
@@ -86,23 +86,33 @@ export default function Overlay({
       <StatusBar
         status={status}
         isListening={isListening}
-        layoutIcon={layoutIcon}
-        layoutTitle={layoutTitle}
+        layoutLabel={layoutLabel}
         onCycleLayout={cycleLayout}
         onClose={() => window.maiku?.toggleVisibility()}
       />
 
-      {/* Answer panel — always visible regardless of layout */}
-      <div className="panel-section answer-section">
-        <Suggestions
-          suggestions={suggestions}
-          isGenerating={isGenerating}
-          answerError={answerError}
-        />
-      </div>
-
-      {/* Tab bar + content — hidden in answer-only layout */}
-      {layout !== 'answer-only' && (
+      {/* answer-only: no tabs, just the full-height answer */}
+      {layout === 'answer-only' ? (
+        <div className="answer-only-wrap" data-no-drag>
+          <Suggestions
+            suggestions={suggestions}
+            isGenerating={isGenerating}
+            answerError={answerError}
+          />
+          <div className="answer-only-bar">
+            <button
+              className="btn-gen"
+              onClick={onForceAnswer}
+              disabled={!isListening || status !== 'connected'}
+              title="Force generate answer now"
+              data-no-drag
+            >
+              ⟳ Generate
+            </button>
+            <button className="btn-clear-sm" onClick={onClear} data-no-drag title="Clear">Clear</button>
+          </div>
+        </div>
+      ) : (
         <>
           <div className="tab-bar" data-no-drag>
             {TABS.map((tab) => (
@@ -118,12 +128,25 @@ export default function Overlay({
 
           <div className="tab-content" data-no-drag>
             {activeTab === 'listen' && (
-              <>
+              <div className="listen-layout">
+                {/* ── Answer — primary, dominant ── */}
+                <div className="answer-section">
+                  <Suggestions
+                    suggestions={suggestions}
+                    isGenerating={isGenerating}
+                    answerError={answerError}
+                  />
+                </div>
+
+                {/* ── Transcript — secondary, smaller ── */}
                 {layout === 'normal' && (
-                  <div className="panel-section">
+                  <div className="transcript-section">
+                    <div className="section-header">Transcript</div>
                     <Transcript segments={transcript} />
                   </div>
                 )}
+
+                {/* ── Controls ── */}
                 <div className="control-bar">
                   <button
                     className={`btn-listen ${isListening ? 'active' : ''}`}
@@ -131,12 +154,20 @@ export default function Overlay({
                     disabled={status !== 'connected'}
                     title={isListening ? 'Stop listening' : 'Start listening'}
                   >
-                    {isListening ? 'Stop' : 'Listen'}
+                    {isListening ? '■ Stop' : '● Listen'}
+                  </button>
+                  <button
+                    className="btn-gen"
+                    onClick={onForceAnswer}
+                    disabled={!isListening || status !== 'connected'}
+                    title="Force generate answer now"
+                  >
+                    ⟳ Answer
                   </button>
                   <button
                     className="btn-save-session"
                     onClick={handleSave}
-                    title="Save session to file"
+                    title="Save session"
                     disabled={transcript.length === 0 && suggestions.length === 0}
                   >
                     {saveMsg ?? 'Save'}
@@ -145,7 +176,7 @@ export default function Overlay({
                     Clear
                   </button>
                 </div>
-              </>
+              </div>
             )}
 
             {activeTab === 'docs' && (
