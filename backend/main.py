@@ -31,7 +31,12 @@ rag = RAGPipeline()
 
 # Sliding transcript buffer (last 10 minutes worth, roughly 1500 tokens)
 transcript_buffer: list[str] = []
-MAX_BUFFER_SEGMENTS = 60  # ~10 min at 10-sec intervals
+MAX_BUFFER_SEGMENTS = 60  # ~10 min at 5-sec chunks
+
+# Time-based suggestion throttle — prevents flooding the LLM
+_last_suggestion_at: float = 0.0
+SUGGESTION_INTERVAL_SEC = 8.0   # normal cadence: one suggestion every 8 s
+QUESTION_INTERVAL_SEC  = 3.0   # fast response when interviewer asks a question
 
 # Stored event loop reference for thread-safe audio callbacks
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -51,6 +56,7 @@ async def broadcast(msg: dict) -> None:
 # ── Audio → STT → LLM pipeline ────────────────────────────────
 async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
     """Transcribe one audio chunk and optionally generate suggestions."""
+    global _last_suggestion_at
     try:
         text = await groq.transcribe(chunk)
         if not text.strip():
@@ -60,19 +66,26 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
         if len(transcript_buffer) > MAX_BUFFER_SEGMENTS:
             transcript_buffer.pop(0)
 
+        now = asyncio.get_running_loop().time()
         await broadcast({
             'type': 'transcript',
             'segment': {
                 'id': segment_id,
                 'text': text,
-                'timestamp': asyncio.get_running_loop().time(),
+                'timestamp': now,
                 'isFinal': True,
             },
         })
 
-        # Generate suggestions every 3 transcript segments
-        if len(transcript_buffer) % 3 == 0:
-            await generate_suggestions()
+        # Trigger suggestions on a time-based throttle so the rate stays
+        # predictable regardless of buffer size.  Also fire sooner when the
+        # interviewer asks a question (detected by trailing '?').
+        if len(transcript_buffer) >= 2:
+            is_question = '?' in text
+            min_interval = QUESTION_INTERVAL_SEC if is_question else SUGGESTION_INTERVAL_SEC
+            if (now - _last_suggestion_at) >= min_interval:
+                _last_suggestion_at = now
+                await generate_suggestions()
 
     except Exception as e:
         log.error('process_audio_chunk error: %s', e)
@@ -147,6 +160,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif cmd == 'clear_session':
                 transcript_buffer.clear()
+                _last_suggestion_at = 0.0
                 log.info('Session cleared')
 
     except WebSocketDisconnect:

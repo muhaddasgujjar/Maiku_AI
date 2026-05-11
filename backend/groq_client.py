@@ -1,6 +1,6 @@
 """
 Groq API client — Whisper STT and LLaMA LLM.
-Free tier: whisper-large-v3 (7200 sec/day), llama3-8b-8192 (14400 req/day).
+Free tier: whisper-large-v3 (7200 sec/day), llama-3.1-8b-instant (14400 req/day).
 """
 import io
 import logging
@@ -12,6 +12,14 @@ import config as _config
 from config import GROQ_API_KEY, STT_MODEL
 
 log = logging.getLogger('maiku.groq')
+
+# Whisper prompt primes the model for tech interview vocabulary — improves accuracy
+# for domain-specific terms that would otherwise be mis-transcribed.
+WHISPER_PROMPT = (
+    'Software engineering interview. Topics may include: Python, JavaScript, '
+    'machine learning, system design, algorithms, APIs, cloud, React, SQL, '
+    'data structures, microservices, CI/CD, Docker, Kubernetes.'
+)
 
 SYSTEM_PROMPT = """You are an expert interview coach helping in real time.
 Given the interviewer's recent question/statement and relevant context from the candidate's CV and projects,
@@ -42,10 +50,7 @@ class GroqClient:
         return self._client
 
     async def transcribe(self, audio_bytes: bytes) -> str:
-        """
-        Send raw PCM audio bytes to Groq Whisper and return transcript text.
-        Audio must be 16kHz mono PCM16 (WAV format expected).
-        """
+        """Send WAV audio bytes to Groq Whisper and return transcript text."""
         try:
             audio_file = io.BytesIO(audio_bytes)
             audio_file.name = 'audio.wav'
@@ -55,6 +60,7 @@ class GroqClient:
                 model=STT_MODEL,
                 response_format='text',
                 language='en',
+                prompt=WHISPER_PROMPT,
             )
             return str(response).strip()
         except Exception as e:
@@ -64,10 +70,7 @@ class GroqClient:
     async def generate_suggestions(
         self, transcript_context: str, rag_chunks: list[str]
     ) -> list[str]:
-        """
-        Generate 3 bullet-point talking points from transcript + RAG context.
-        Returns list of bullet strings.
-        """
+        """Generate 3 bullet-point talking points from transcript + RAG context."""
         rag_text = '\n'.join(rag_chunks) if rag_chunks else 'No additional context available.'
 
         user_message = (
@@ -82,16 +85,29 @@ class GroqClient:
                     {'role': 'system', 'content': SYSTEM_PROMPT},
                     {'role': 'user', 'content': user_message},
                 ],
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0.4,
             )
             raw = response.choices[0].message.content or ''
-            bullets = [
-                line.strip().lstrip('•').strip()
-                for line in raw.splitlines()
-                if line.strip().startswith('•')
-            ]
-            return bullets[:3]
+            return _parse_bullets(raw)
         except Exception as e:
             log.error('LLM suggestion failed: %s', e)
             return []
+
+
+def _parse_bullets(text: str) -> list[str]:
+    """Extract bullet points from LLM output; tolerates •, -, * and numbered lists."""
+    bullets = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Numbered: "1. ", "2. ", "3. "
+        if len(line) >= 3 and line[0].isdigit() and line[1] == '.' and line[2] == ' ':
+            bullets.append(line[3:].strip())
+        # Symbol: "• ", "- ", "* "
+        elif line[0] in ('•', '-', '*'):
+            bullets.append(line[1:].strip())
+        if len(bullets) == 3:
+            break
+    return bullets

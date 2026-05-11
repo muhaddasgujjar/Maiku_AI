@@ -18,7 +18,9 @@ log = logging.getLogger('maiku.audio')
 
 CHANNELS = 1
 SAMPLE_WIDTH = 2  # 16-bit PCM
-CHUNK_FRAMES = AUDIO_SAMPLE_RATE * AUDIO_CHUNK_SECONDS
+
+# RMS below this level (out of 32767) is treated as silence — skip Whisper call
+SILENCE_RMS_THRESHOLD = 150
 
 
 class AudioCapture:
@@ -74,34 +76,48 @@ class AudioCapture:
             pa.terminate()
             return
 
-        log.info('Capturing from: %s', device_info.get('name'))
+        # Use the device's NATIVE rate — WASAPI loopback captures at hardware rate
+        # (usually 44100 or 48000 Hz). Opening at a different rate causes corrupt audio.
+        native_rate = int(device_info.get('defaultSampleRate', AUDIO_SAMPLE_RATE))
+        native_channels = max(1, int(device_info.get('maxInputChannels', 2)))
+        chunk_frames = native_rate * AUDIO_CHUNK_SECONDS
+
+        log.info(
+            'Capturing from: %s @ %d Hz, %d ch',
+            device_info.get('name'), native_rate, native_channels,
+        )
 
         stream = pa.open(
             format=pyaudio.paInt16,
-            channels=CHANNELS,
-            rate=AUDIO_SAMPLE_RATE,
+            channels=native_channels,
+            rate=native_rate,
             input=True,
             input_device_index=device_info['index'],
             frames_per_buffer=1024,
         )
 
         frames: list[bytes] = []
+        total_frames = 0
+        sample_width = pa.get_sample_size(pyaudio.paInt16)
         try:
             while not self._stop_event.is_set():
                 data = stream.read(1024, exception_on_overflow=False)
                 frames.append(data)
+                total_frames += 1024
 
-                if len(frames) >= (CHUNK_FRAMES // 1024):
-                    wav_bytes = self._frames_to_wav(frames, pa.get_sample_size(pyaudio.paInt16))
-                    on_chunk(wav_bytes)
+                if total_frames >= chunk_frames:
+                    if not _is_silent(frames, native_channels):
+                        wav_bytes = _frames_to_wav(frames, sample_width, native_rate, native_channels)
+                        on_chunk(wav_bytes)
                     frames = []
+                    total_frames = 0
         finally:
             stream.stop_stream()
             stream.close()
             pa.terminate()
 
     def _find_wasapi_loopback_device(self, pa) -> Optional[dict]:
-        """Find the WASAPI loopback device (the system audio output)."""
+        """Find the WASAPI loopback device paired with the default speakers."""
         import pyaudiowpatch as pyaudio  # type: ignore
 
         try:
@@ -115,7 +131,6 @@ class AudioCapture:
 
         default_speakers = pa.get_device_info_by_index(default_speakers_idx)
 
-        # Find the loopback device paired with default speakers
         for i in range(pa.get_device_count()):
             device = pa.get_device_info_by_index(i)
             if (
@@ -142,6 +157,7 @@ class AudioCapture:
 
         log.info('sounddevice capture (loopback may need virtual cable on Windows)')
 
+        chunk_frames = AUDIO_SAMPLE_RATE * AUDIO_CHUNK_SECONDS
         buffer: list[bytes] = []
         buffer_frames = [0]
 
@@ -152,28 +168,47 @@ class AudioCapture:
             buffer.append(pcm)
             buffer_frames[0] += frames
 
-            if buffer_frames[0] >= CHUNK_FRAMES:
-                wav_bytes = self._frames_to_wav(buffer, SAMPLE_WIDTH)
-                on_chunk(wav_bytes)
+            if buffer_frames[0] >= chunk_frames:
+                if not _is_silent(buffer, channels=1):
+                    wav_bytes = _frames_to_wav(buffer, SAMPLE_WIDTH, AUDIO_SAMPLE_RATE, 1)
+                    on_chunk(wav_bytes)
                 buffer.clear()
                 buffer_frames[0] = 0
 
         with sd.InputStream(
             samplerate=AUDIO_SAMPLE_RATE,
-            channels=CHANNELS,
+            channels=1,
             dtype='float32',
             device=device,
             callback=callback,
         ):
             self._stop_event.wait()
 
-    @staticmethod
-    def _frames_to_wav(frames: list[bytes], sample_width: int) -> bytes:
-        """Pack raw PCM frames into a WAV container (required by Groq Whisper API)."""
-        buf = io.BytesIO()
-        with wave.open(buf, 'wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(sample_width)
-            wf.setframerate(AUDIO_SAMPLE_RATE)
-            wf.writeframes(b''.join(frames))
-        return buf.getvalue()
+
+# ── Module-level helpers (no self needed) ─────────────────────
+
+def _frames_to_wav(
+    frames: list[bytes],
+    sample_width: int,
+    frame_rate: int = AUDIO_SAMPLE_RATE,
+    channels: int = CHANNELS,
+) -> bytes:
+    """Pack raw PCM frames into a WAV container (required by Groq Whisper API)."""
+    buf = io.BytesIO()
+    with wave.open(buf, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(frame_rate)
+        wf.writeframes(b''.join(frames))
+    return buf.getvalue()
+
+
+def _is_silent(frames: list[bytes], channels: int = 1) -> bool:
+    """Return True if the audio energy is below the silence threshold."""
+    pcm = b''.join(frames)
+    count = len(pcm) // 2  # number of int16 samples (all channels interleaved)
+    if count == 0:
+        return True
+    samples = struct.unpack_from(f'<{count}h', pcm)
+    rms = (sum(s * s for s in samples) / count) ** 0.5
+    return rms < SILENCE_RMS_THRESHOLD
