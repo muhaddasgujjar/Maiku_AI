@@ -19,6 +19,13 @@ export interface Suggestion {
 export interface AppSettings {
   groqApiKey?: string
   llmModel?: string
+  opacity?: number
+}
+
+export interface SessionEntry {
+  timestamp: number
+  transcript: TranscriptSegment[]
+  suggestions: Suggestion[]
 }
 
 export interface DocEntry {
@@ -44,6 +51,8 @@ declare global {
       toggleVisibility: () => void
       loadSettings: () => Promise<AppSettings>
       saveSettings: (data: AppSettings) => Promise<{ ok: boolean }>
+      setOpacity: (val: number) => void
+      saveSession: (data: SessionEntry) => Promise<{ ok: boolean; file: string }>
     }
   }
 }

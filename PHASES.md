@@ -80,8 +80,8 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 - [x] Global hotkey: Ctrl+Alt+M = toggle overlay visibility
 - [x] Tab navigation: Listen | Docs | Settings
 - [x] Drag-to-move frameless window
-- [ ] Session log: save Q&A pairs to local JSON
-- [ ] Opacity control (slider in settings)
+- [x] Session log: save transcript + suggestions to local JSON (`%APPDATA%\Maiku AI\sessions\`)
+- [x] Opacity control (slider in settings, live preview via Electron setOpacity, persisted)
 
 ---
 
@@ -98,7 +98,7 @@ Maiku_AI is a desktop interview copilot — an invisible overlay that listens to
 - [x] userData paths: CHROMA_PERSIST_DIR + HF_HOME → `%APPDATA%\Maiku AI\`
 - [x] Auto-injects saved API key into backend env at launch
 - [x] First-run auto-redirect to Settings tab
-- [ ] **BLOCKER**: `node_modules/electron` binary missing — run `npm install` in fresh terminal
+- [x] `npm install` — Electron binary installed, all deps present
 - [ ] Create `assets/icon.ico` (256×256 ICO) for installer icon
 - [ ] Push to GitHub → enable auto-update via electron-updater releases
 - [ ] macOS / Linux testing

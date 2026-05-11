@@ -28,6 +28,19 @@ function saveSettingsToDisk(data) {
 ipcMain.handle('load-settings', () => loadSettingsFromDisk())
 ipcMain.handle('save-settings', (_, data) => { saveSettingsToDisk(data); return { ok: true } })
 
+ipcMain.on('set-opacity', (_, val) => {
+  if (mainWindow) mainWindow.setOpacity(Math.min(1, Math.max(0.1, val)))
+})
+
+ipcMain.handle('save-session', (_, data) => {
+  const sessionsDir = path.join(app.getPath('userData'), 'sessions')
+  if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const file = path.join(sessionsDir, `session-${stamp}.json`)
+  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8')
+  return { ok: true, file }
+})
+
 // ── Window creation ───────────────────────────────────────────
 function createWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize
@@ -54,6 +67,9 @@ function createWindow() {
   // Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
   // macOS: NSWindowSharingNone
   mainWindow.setContentProtection(true)
+
+  const saved = loadSettingsFromDisk()
+  if (saved.opacity != null) mainWindow.setOpacity(Math.min(1, Math.max(0.1, saved.opacity)))
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
@@ -116,6 +132,17 @@ function startBackend() {
   backendProcess.on('close', (code) => console.log(`[backend] exited with code ${code}`))
 }
 
+// ── Quick check — is backend already running? ─────────────────
+function isBackendAlreadyRunning() {
+  return new Promise((resolve) => {
+    const req = http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
+      resolve(res.statusCode === 200)
+    })
+    req.on('error', () => resolve(false))
+    req.setTimeout(600, () => { req.destroy(); resolve(false) })
+  })
+}
+
 // ── Health poll — wait until backend responds ─────────────────
 function pollHealth(maxMs = 60000) {
   return new Promise((resolve) => {
@@ -137,12 +164,14 @@ function pollHealth(maxMs = 60000) {
 
 // ── App lifecycle ─────────────────────────────────────────────
 app.whenReady().then(async () => {
+  const alreadyUp = await isBackendAlreadyRunning()
+  if (!alreadyUp) startBackend()  // skip if user started backend manually
+
   if (isDev) {
-    // Dev: user starts backend manually; window opens immediately
+    // Dev: show window immediately; WebSocket auto-reconnects when backend is ready
     createWindow()
   } else {
-    // Production: spawn backend, wait for it, then show window
-    startBackend()
+    // Production: wait up to 60 s for backend before showing UI
     const ready = await pollHealth(60000)
     if (ready) {
       createWindow()

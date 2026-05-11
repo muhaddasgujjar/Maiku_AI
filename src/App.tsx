@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Overlay from './components/Overlay'
 import type {
   ConnectionStatus, TabName, TranscriptSegment, Suggestion, WsMessage,
-  AppSettings, DocEntry,
+  AppSettings, DocEntry, SessionEntry,
 } from './types'
 
 const RECONNECT_DELAY_MS = 3000
@@ -26,6 +26,7 @@ export default function App() {
     window.maiku?.loadSettings().then((saved) => {
       if (saved && Object.keys(saved).length > 0) {
         setSettings(saved)
+        if (saved.opacity != null) window.maiku?.setOpacity(saved.opacity)
         if (saved.groqApiKey) {
           // Push saved key to backend (may already be running)
           fetch(`${BACKEND_HTTP}/settings`, {
@@ -145,6 +146,21 @@ export default function App() {
     await window.maiku?.saveSettings(updated)
   }, [])
 
+  // ── Session save ───────────────────────────────────────────────
+  const handleSaveSession = useCallback(async (): Promise<boolean> => {
+    const entry: SessionEntry = {
+      timestamp: Date.now(),
+      transcript,
+      suggestions,
+    }
+    try {
+      await window.maiku?.saveSession(entry)
+      return true
+    } catch {
+      return false
+    }
+  }, [transcript, suggestions])
+
   return (
     <Overlay
       status={status}
@@ -160,6 +176,7 @@ export default function App() {
       onTabChange={setActiveTab}
       onSaveSettings={handleSaveSettings}
       onDocsChange={fetchDocs}
+      onSaveSession={handleSaveSession}
     />
   )
 }

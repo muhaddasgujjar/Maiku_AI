@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import StatusBar from './StatusBar'
 import Transcript from './Transcript'
 import Suggestions from './Suggestions'
@@ -22,6 +22,7 @@ interface Props {
   onTabChange: (tab: TabName) => void
   onSaveSettings: (s: AppSettings) => Promise<void>
   onDocsChange: () => void
+  onSaveSession: () => Promise<boolean>
 }
 
 const TABS: { id: TabName; label: string }[] = [
@@ -33,9 +34,16 @@ const TABS: { id: TabName; label: string }[] = [
 export default function Overlay({
   status, transcript, suggestions, isListening,
   activeTab, settings, docs, backendUrl,
-  onToggleListening, onClear, onTabChange, onSaveSettings, onDocsChange,
+  onToggleListening, onClear, onTabChange, onSaveSettings, onDocsChange, onSaveSession,
 }: Props) {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
+  const [saveMsg, setSaveMsg] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    const ok = await onSaveSession()
+    setSaveMsg(ok ? 'Saved' : 'Failed')
+    setTimeout(() => setSaveMsg(null), 2000)
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-no-drag]')) return
@@ -94,6 +102,14 @@ export default function Overlay({
                 title={isListening ? 'Stop listening' : 'Start listening'}
               >
                 {isListening ? 'Stop' : 'Listen'}
+              </button>
+              <button
+                className="btn-save-session"
+                onClick={handleSave}
+                title="Save session to file"
+                disabled={transcript.length === 0 && suggestions.length === 0}
+              >
+                {saveMsg ?? 'Save'}
               </button>
               <button className="btn-clear" onClick={onClear} title="Clear session">
                 Clear

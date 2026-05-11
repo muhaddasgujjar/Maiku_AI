@@ -9,7 +9,7 @@ BACKEND_HOST: str = os.getenv('BACKEND_HOST', 'localhost')
 BACKEND_PORT: int = int(os.getenv('BACKEND_PORT', '8765'))
 
 STT_MODEL: str = os.getenv('STT_MODEL', 'whisper-large-v3')
-LLM_MODEL: str = os.getenv('LLM_MODEL', 'llama3-8b-8192')
+LLM_MODEL: str = os.getenv('LLM_MODEL', 'llama-3.1-8b-instant')
 
 CHROMA_PERSIST_DIR: str = os.getenv(
     'CHROMA_PERSIST_DIR',

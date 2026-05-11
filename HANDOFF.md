@@ -67,7 +67,7 @@ Maiku_AI/
 
 ---
 
-## Current State (Updated: 2026-05-10)
+## Current State (Updated: 2026-05-11)
 **Phases 1–5 (partial) complete — full pipeline + packaging config implemented.**
 
 All core features are coded and ready to test:
@@ -88,25 +88,19 @@ All core features are coded and ready to test:
 7. Go to Docs tab → paste your CV → Index Document
 8. Go to Listen tab → click Listen → play a video to test transcript
 
-**Known issue — Electron binary lock (Windows):**
-The `node_modules/electron` folder is empty (binary download was interrupted by a network reset).
-Fix: close ALL terminals, open a fresh PowerShell/CMD, then run `npm install` from the project root.
-The `.npmrc` now points to a reliable mirror so it won't time out again.
-
 **To build the Windows installer:**
 ```powershell
-# After npm install works:
 pip install pyinstaller      # one-time
 .\build.ps1                  # builds backend.exe + NSIS installer
 # Output: dist-electron\Maiku AI Setup 0.1.0.exe
 ```
 
-**Remaining Phase 4 (minor):**
-- Session log (save Q&A to JSON)
-- Opacity slider in Settings
+**Phase 4 — COMPLETE.** All features implemented:
+- Session log: "Save" button in Listen tab → writes `%APPDATA%\Maiku AI\sessions\session-TIMESTAMP.json`
+- Opacity slider in Settings → live preview via Electron `setOpacity()`, persisted to settings.json
 
 **Remaining Phase 5:**
-- Create `assets/icon.ico` (256×256) for installer
+- Create `assets/icon.ico` (256×256) for installer — without it, electron-builder uses a default icon
 - Push repo to GitHub to enable auto-update via electron-updater releases
 
 ---

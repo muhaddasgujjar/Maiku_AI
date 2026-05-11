@@ -44,7 +44,11 @@ export default function DocumentPanel({ docs, backendUrl, onDocsChange }: Props)
       setMessage({ text: `${DOC_TYPE_LABELS[docType]} indexed successfully.`, ok: true })
       onDocsChange()
     } catch (e) {
-      setMessage({ text: `Upload failed: ${(e as Error).message}`, ok: false })
+      const msg = (e as Error).message
+      const hint = msg.toLowerCase().includes('fetch')
+        ? 'Backend not ready — wait for the status bar to show Connected, then retry.'
+        : msg
+      setMessage({ text: `Upload failed: ${hint}`, ok: false })
     } finally {
       setUploading(false)
     }
