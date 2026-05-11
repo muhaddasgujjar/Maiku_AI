@@ -37,10 +37,13 @@ export interface DocEntry {
 export type WsMessage =
   | { type: 'transcript'; segment: TranscriptSegment }
   | { type: 'suggestion'; suggestion: Suggestion }
+  | { type: 'generating' }
   | { type: 'status'; message: string }
   | { type: 'error'; message: string }
   | { type: 'listening_start' }
   | { type: 'listening_stop' }
+
+export type WindowSize = 'compact' | 'normal' | 'answer-only'
 
 // Exposed by preload.js via contextBridge
 declare global {
@@ -49,6 +52,7 @@ declare global {
       getBackendUrl: () => Promise<string>
       moveWindow: (deltaX: number, deltaY: number) => void
       toggleVisibility: () => void
+      resizeWindow: (size: WindowSize) => void
       loadSettings: () => Promise<AppSettings>
       saveSettings: (data: AppSettings) => Promise<{ ok: boolean }>
       setOpacity: (val: number) => void

@@ -2,16 +2,27 @@ import type { Suggestion } from '../types'
 
 interface Props {
   suggestions: Suggestion[]
-  isLoading?: boolean
+  isGenerating?: boolean
+  answerError?: string | null
 }
 
-export default function Suggestions({ suggestions, isLoading }: Props) {
-  if (isLoading) {
+export default function Suggestions({ suggestions, isGenerating, answerError }: Props) {
+  if (isGenerating) {
     return (
       <div className="answer-loading">
         <span className="loading-dot" />
         <span className="loading-dot" />
         <span className="loading-dot" />
+        <span className="loading-generating">Generating answer…</span>
+      </div>
+    )
+  }
+
+  if (answerError) {
+    return (
+      <div className="answer-error">
+        <span className="answer-error-icon">⚠</span>
+        <span className="answer-error-text">{answerError}</span>
       </div>
     )
   }

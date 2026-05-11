@@ -17,10 +17,13 @@ const STATUS_COLORS: Record<ConnectionStatus, string> = {
 interface Props {
   status: ConnectionStatus
   isListening: boolean
+  layoutIcon: string
+  layoutTitle: string
+  onCycleLayout: () => void
   onClose: () => void
 }
 
-export default function StatusBar({ status, isListening, onClose }: Props) {
+export default function StatusBar({ status, isListening, layoutIcon, layoutTitle, onCycleLayout, onClose }: Props) {
   return (
     <div className="status-bar">
       <span className="app-title">Maiku AI</span>
@@ -36,6 +39,14 @@ export default function StatusBar({ status, isListening, onClose }: Props) {
           ●
         </span>
         <span className="status-label">{STATUS_LABELS[status]}</span>
+        <button
+          className="btn-layout"
+          onClick={onCycleLayout}
+          title={layoutTitle}
+          data-no-drag
+        >
+          {layoutIcon}
+        </button>
         <button
           className="btn-close"
           onClick={onClose}

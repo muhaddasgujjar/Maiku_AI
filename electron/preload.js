@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('maiku', {
   getBackendUrl: () => ipcRenderer.invoke('get-backend-url'),
   moveWindow: (deltaX, deltaY) => ipcRenderer.send('window-move', { deltaX, deltaY }),
   toggleVisibility: () => ipcRenderer.send('toggle-visibility'),
+  resizeWindow: (preset) => ipcRenderer.send('window-resize', preset),
   loadSettings: () => ipcRenderer.invoke('load-settings'),
   saveSettings: (data) => ipcRenderer.invoke('save-settings', data),
   setOpacity: (val) => ipcRenderer.send('set-opacity', val),

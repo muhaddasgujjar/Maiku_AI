@@ -15,6 +15,19 @@ interface Props {
   onDocsChange: () => void
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delayMs = 600): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options)
+      return res
+    } catch (err) {
+      if (i === retries - 1) throw err
+      await new Promise((r) => setTimeout(r, delayMs))
+    }
+  }
+  throw new Error('All retries failed')
+}
+
 export default function DocumentPanel({ docs, backendUrl, onDocsChange }: Props) {
   const [docType, setDocType] = useState<DocType>('cv')
   const [content, setContent] = useState('')
@@ -27,28 +40,52 @@ export default function DocumentPanel({ docs, backendUrl, onDocsChange }: Props)
       setMessage({ text: 'Paste some text first.', ok: false })
       return
     }
+
     setUploading(true)
-    setMessage(null)
+    setMessage({ text: 'Connecting to backend…', ok: true })
+
     try {
-      const res = await fetch(`${backendUrl}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: docType,
-          content: content.trim(),
-          metadata: { label: DOC_TYPE_LABELS[docType], type: docType },
-        }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      // Health check first so we get a clear error if backend is down
+      await fetchWithRetry(`${backendUrl}/health`, { method: 'GET' }, 4, 800)
+
+      setMessage({ text: 'Indexing…', ok: true })
+
+      const res = await fetchWithRetry(
+        `${backendUrl}/documents`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: `${docType}_${Date.now()}`,
+            content: content.trim(),
+            metadata: { label: DOC_TYPE_LABELS[docType], type: docType, doc_id: docType },
+          }),
+        },
+        3,
+        600,
+      )
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Server error ${res.status}${body ? ': ' + body : ''}`)
+      }
+
       setContent('')
       setMessage({ text: `${DOC_TYPE_LABELS[docType]} indexed successfully.`, ok: true })
       onDocsChange()
     } catch (e) {
-      const msg = (e as Error).message
-      const hint = msg.toLowerCase().includes('fetch')
-        ? 'Backend not ready — wait for the status bar to show Connected, then retry.'
-        : msg
-      setMessage({ text: `Upload failed: ${hint}`, ok: false })
+      const raw = (e as Error).message ?? String(e)
+      const isNetwork = raw.toLowerCase().includes('failed to fetch')
+        || raw.toLowerCase().includes('network')
+        || raw.toLowerCase().includes('econnrefused')
+        || raw.toLowerCase().includes('err_connection_refused')
+
+      setMessage({
+        text: isNetwork
+          ? 'Cannot reach backend. Make sure the app is fully started (status bar shows Ready), then try again.'
+          : `Upload failed: ${raw}`,
+        ok: false,
+      })
     } finally {
       setUploading(false)
     }
@@ -57,10 +94,15 @@ export default function DocumentPanel({ docs, backendUrl, onDocsChange }: Props)
   const handleDelete = async (docId: string) => {
     setDeletingId(docId)
     try {
-      await fetch(`${backendUrl}/documents/${encodeURIComponent(docId)}`, { method: 'DELETE' })
+      await fetchWithRetry(
+        `${backendUrl}/documents/${encodeURIComponent(docId)}`,
+        { method: 'DELETE' },
+        3,
+        400,
+      )
       onDocsChange()
     } catch {
-      // silently ignore
+      // ignore
     } finally {
       setDeletingId(null)
     }
@@ -125,8 +167,11 @@ export default function DocumentPanel({ docs, backendUrl, onDocsChange }: Props)
         </div>
       )}
 
-      {docs.length === 0 && (
-        <div className="doc-empty">No documents indexed yet. Paste your CV to get personalised suggestions.</div>
+      {docs.length === 0 && !uploading && (
+        <div className="doc-empty">
+          No documents indexed yet.<br />
+          Paste your CV above to get personalised answers.
+        </div>
       )}
     </div>
   )

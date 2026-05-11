@@ -14,6 +14,8 @@ export default function App() {
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([])
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isListening, setIsListening] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [answerError, setAnswerError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabName>('listen')
   const [settings, setSettings] = useState<AppSettings>({})
   const [docs, setDocs] = useState<DocEntry[]>([])
@@ -73,8 +75,18 @@ export default function App() {
               return [...prev.slice(-20), msg.segment]
             })
             break
+          case 'generating':
+            setIsGenerating(true)
+            setAnswerError(null)
+            break
           case 'suggestion':
+            setIsGenerating(false)
+            setAnswerError(null)
             setSuggestions((prev) => [msg.suggestion, ...prev.slice(0, 4)])
+            break
+          case 'error':
+            setIsGenerating(false)
+            setAnswerError(msg.message)
             break
           case 'listening_start':
             setIsListening(true)
@@ -121,6 +133,8 @@ export default function App() {
   const clearSession = useCallback(() => {
     setTranscript([])
     setSuggestions([])
+    setAnswerError(null)
+    setIsGenerating(false)
     sendCommand({ type: 'clear_session' })
   }, [sendCommand])
 
@@ -167,6 +181,8 @@ export default function App() {
       transcript={transcript}
       suggestions={suggestions}
       isListening={isListening}
+      isGenerating={isGenerating}
+      answerError={answerError}
       activeTab={activeTab}
       settings={settings}
       docs={docs}

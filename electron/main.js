@@ -89,6 +89,18 @@ function createWindow() {
     else mainWindow.show()
   })
 
+  const WINDOW_SIZES = {
+    'answer-only': [480, 260],
+    compact: [480, 480],
+    normal: [480, 660],
+  }
+
+  ipcMain.on('window-resize', (_, preset) => {
+    if (!mainWindow) return
+    const size = WINDOW_SIZES[preset] || WINDOW_SIZES.normal
+    mainWindow.setSize(size[0], size[1], true)
+  })
+
   ipcMain.handle('get-backend-url', () => `ws://localhost:${BACKEND_PORT}/ws`)
 }
 

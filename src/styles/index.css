@@ -90,18 +90,24 @@ html, body, #root {
   color: var(--text-muted);
 }
 
-.btn-close {
+.btn-close, .btn-layout {
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 2px 5px;
   border-radius: 4px;
   cursor: pointer;
-  margin-left: 4px;
+  margin-left: 2px;
   opacity: 0.6;
   transition: opacity 0.15s, background 0.15s;
+}
+
+.btn-layout:hover {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-hover);
 }
 
 .btn-close:hover {
@@ -201,6 +207,31 @@ html, body, #root {
   padding: 2px 4px;
 }
 
+/* ── Error state ── */
+.answer-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+}
+
+.answer-error-icon {
+  color: var(--danger);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.answer-error-text {
+  font-size: 12px;
+  color: var(--danger);
+  line-height: 1.5;
+}
+
 /* ── Loading dots ── */
 .answer-loading {
   display: flex;
@@ -209,6 +240,12 @@ html, body, #root {
   gap: 6px;
   flex: 1;
   padding: 16px;
+}
+
+.loading-generating {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 
 .loading-dot {
@@ -620,6 +657,21 @@ kbd {
   font-size: 10px;
   font-family: monospace;
   color: var(--text);
+}
+
+/* ── Layout modes ── */
+.layout-answer-only .answer-section {
+  flex: 1;
+}
+
+.layout-compact .answer-section {
+  flex: 0 0 180px;
+  min-height: 0;
+}
+
+.layout-normal .answer-section {
+  flex: 0 0 200px;
+  min-height: 0;
 }
 
 /* Scrollbar styling */

@@ -111,8 +111,8 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
 
 async def generate_answer() -> None:
     """Run RAG + LLM to produce a full spoken answer for the latest question."""
+    await broadcast({'type': 'generating'})
     try:
-        # Use only the last 3 segments (~15 sec) — focused on what was just asked
         recent_text = ' '.join(transcript_buffer[-3:])
         rag_chunks = rag.query(recent_text, n_results=4)
         answer, question = await groq.generate_answer(recent_text, rag_chunks)
@@ -128,8 +128,11 @@ async def generate_answer() -> None:
                 },
             })
             log.info('Answer generated (%d chars) for: %s', len(answer), question[:60])
+        else:
+            await broadcast({'type': 'error', 'message': 'LLM returned an empty response. Check your Groq API key in Settings.'})
     except Exception as e:
         log.error('generate_answer error: %s', e)
+        await broadcast({'type': 'error', 'message': f'Answer generation failed: {e}'})
 
 
 # ── Lifespan ──────────────────────────────────────────────────
