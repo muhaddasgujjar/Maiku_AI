@@ -35,11 +35,27 @@ MAX_BUFFER_SEGMENTS = 60  # ~10 min at 5-sec chunks
 
 # Time-based suggestion throttle — prevents flooding the LLM
 _last_suggestion_at: float = 0.0
-SUGGESTION_INTERVAL_SEC = 8.0   # normal cadence: one suggestion every 8 s
-QUESTION_INTERVAL_SEC  = 3.0   # fast response when interviewer asks a question
+QUESTION_INTERVAL_SEC = 2.0    # near-instant when a question is detected
+IDLE_INTERVAL_SEC     = 12.0   # periodic refresh when no clear question
+
+# Question-word patterns that signal the interviewer is asking something
+_QUESTION_WORDS = (
+    'what', 'how', 'why', 'when', 'where', 'who', 'which',
+    'tell me', 'describe', 'explain', 'walk me', 'give me',
+    'can you', 'could you', 'would you', 'have you', 'do you',
+    'are you', 'is there', 'show me',
+)
 
 # Stored event loop reference for thread-safe audio callbacks
 _event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _is_question(text: str) -> bool:
+    """Return True if the transcribed text looks like an interviewer question."""
+    lower = text.lower().strip()
+    if '?' in lower:
+        return True
+    return any(lower.startswith(w) or f' {w} ' in lower for w in _QUESTION_WORDS)
 
 
 # ── WebSocket hub ─────────────────────────────────────────────
@@ -77,14 +93,15 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
             },
         })
 
-        # Trigger suggestions on a time-based throttle so the rate stays
-        # predictable regardless of buffer size.  Also fire sooner when the
-        # interviewer asks a question (detected by trailing '?').
-        if len(transcript_buffer) >= 2:
-            is_question = '?' in text
-            min_interval = QUESTION_INTERVAL_SEC if is_question else SUGGESTION_INTERVAL_SEC
+        # Fire as soon as we have any transcript.
+        # Questions (detected by ? or question-opening words) get a fast 2s
+        # response; idle speech is refreshed every 12s.
+        if transcript_buffer:
+            is_question = _is_question(text)
+            min_interval = QUESTION_INTERVAL_SEC if is_question else IDLE_INTERVAL_SEC
             if (now - _last_suggestion_at) >= min_interval:
                 _last_suggestion_at = now
+                log.info('Triggering answer (question=%s): %s', is_question, text[:60])
                 await generate_answer()
 
     except Exception as e:

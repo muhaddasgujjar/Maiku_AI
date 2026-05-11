@@ -90,6 +90,26 @@ html, body, #root {
   color: var(--text-muted);
 }
 
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.btn-close:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
 /* ── Panels ── */
 .panel-section {
   flex: 1;

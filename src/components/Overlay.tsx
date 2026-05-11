@@ -69,7 +69,11 @@ export default function Overlay({
 
   return (
     <div className="overlay" onMouseDown={handleMouseDown}>
-      <StatusBar status={status} isListening={isListening} />
+      <StatusBar
+        status={status}
+        isListening={isListening}
+        onClose={() => window.maiku?.toggleVisibility()}
+      />
 
       {/* Tab bar */}
       <div className="tab-bar" data-no-drag>

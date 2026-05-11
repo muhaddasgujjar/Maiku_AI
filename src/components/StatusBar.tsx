@@ -17,9 +17,10 @@ const STATUS_COLORS: Record<ConnectionStatus, string> = {
 interface Props {
   status: ConnectionStatus
   isListening: boolean
+  onClose: () => void
 }
 
-export default function StatusBar({ status, isListening }: Props) {
+export default function StatusBar({ status, isListening, onClose }: Props) {
   return (
     <div className="status-bar">
       <span className="app-title">Maiku AI</span>
@@ -35,6 +36,14 @@ export default function StatusBar({ status, isListening }: Props) {
           ●
         </span>
         <span className="status-label">{STATUS_LABELS[status]}</span>
+        <button
+          className="btn-close"
+          onClick={onClose}
+          title="Hide overlay (Ctrl+Shift+M to show again)"
+          data-no-drag
+        >
+          ✕
+        </button>
       </div>
     </div>
   )
