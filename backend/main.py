@@ -85,32 +85,34 @@ async def process_audio_chunk(chunk: bytes, segment_id: str) -> None:
             min_interval = QUESTION_INTERVAL_SEC if is_question else SUGGESTION_INTERVAL_SEC
             if (now - _last_suggestion_at) >= min_interval:
                 _last_suggestion_at = now
-                await generate_suggestions()
+                await generate_answer()
 
     except Exception as e:
         log.error('process_audio_chunk error: %s', e)
         await broadcast({'type': 'error', 'message': str(e)})
 
 
-async def generate_suggestions() -> None:
-    """Run RAG + LLM to produce talking point bullets."""
+async def generate_answer() -> None:
+    """Run RAG + LLM to produce a full spoken answer for the latest question."""
     try:
-        context_text = ' '.join(transcript_buffer[-10:])
-        rag_chunks = rag.query(context_text, n_results=3)
-        bullets = await groq.generate_suggestions(context_text, rag_chunks)
+        # Use only the last 3 segments (~15 sec) — focused on what was just asked
+        recent_text = ' '.join(transcript_buffer[-3:])
+        rag_chunks = rag.query(recent_text, n_results=4)
+        answer, question = await groq.generate_answer(recent_text, rag_chunks)
 
-        if bullets:
+        if answer:
             await broadcast({
                 'type': 'suggestion',
                 'suggestion': {
                     'id': str(uuid.uuid4()),
-                    'bullets': bullets,
-                    'context': context_text[-200:],
+                    'answer': answer,
+                    'question': question,
                     'timestamp': asyncio.get_running_loop().time(),
                 },
             })
+            log.info('Answer generated (%d chars) for: %s', len(answer), question[:60])
     except Exception as e:
-        log.error('generate_suggestions error: %s', e)
+        log.error('generate_answer error: %s', e)
 
 
 # ── Lifespan ──────────────────────────────────────────────────

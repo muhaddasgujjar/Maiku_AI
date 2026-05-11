@@ -11,8 +11,8 @@ export interface TranscriptSegment {
 
 export interface Suggestion {
   id: string
-  bullets: string[]
-  context: string
+  answer: string       // full spoken answer — ready to read aloud
+  question: string     // detected question from transcript
   timestamp: number
 }
 
