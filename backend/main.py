@@ -137,16 +137,25 @@ async def generate_answer() -> None:
 
 
 # ── Lifespan ──────────────────────────────────────────────────
+async def _init_rag_background() -> None:
+    """Load sentence-transformers + ChromaDB in a thread so server starts instantly."""
+    try:
+        await asyncio.to_thread(rag.initialize)
+        if rag._collection is not None:
+            log.info('RAG pipeline ready (%d docs)', rag._collection.count())
+        else:
+            log.warning('RAG pipeline NOT available — docs disabled')
+    except Exception as e:
+        log.error('RAG background init error: %s', e)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global _event_loop
     _event_loop = asyncio.get_running_loop()
     log.info('Maiku AI backend starting on %s:%d', BACKEND_HOST, BACKEND_PORT)
-    rag.initialize()
-    if rag._collection is None:
-        log.warning('RAG pipeline NOT available — document context disabled')
-    else:
-        log.info('RAG pipeline ready')
+    # RAG runs in background — server accepts connections immediately
+    asyncio.ensure_future(_init_rag_background())
     yield
     audio.stop()
     log.info('Maiku AI backend stopped')

@@ -8,6 +8,12 @@ GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
 BACKEND_HOST: str = os.getenv('BACKEND_HOST', '127.0.0.1')
 BACKEND_PORT: int = int(os.getenv('BACKEND_PORT', '8765'))
 
+# Cache HuggingFace models locally so they are only downloaded once
+_HF_CACHE = str(Path(__file__).parent / '.hf_cache')
+os.environ.setdefault('HF_HOME', _HF_CACHE)
+os.environ.setdefault('SENTENCE_TRANSFORMERS_HOME', _HF_CACHE)
+os.environ.setdefault('TRANSFORMERS_CACHE', _HF_CACHE)
+
 STT_MODEL: str = os.getenv('STT_MODEL', 'whisper-large-v3')
 LLM_MODEL: str = os.getenv('LLM_MODEL', 'llama-3.1-8b-instant')
 

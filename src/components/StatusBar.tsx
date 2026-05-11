@@ -1,17 +1,17 @@
 import type { ConnectionStatus } from '../types'
 
 const STATUS_LABELS: Record<ConnectionStatus, string> = {
-  connecting: 'Connecting...',
+  connecting: 'Starting...',
   connected: 'Ready',
-  disconnected: 'Reconnecting...',
-  error: 'Error',
+  disconnected: 'Connecting...',
+  error: 'Connecting...',
 }
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
   connecting: '#f59e0b',
   connected: '#22c55e',
-  disconnected: '#6b7280',
-  error: '#ef4444',
+  disconnected: '#f59e0b',
+  error: '#f59e0b',
 }
 
 interface Props {

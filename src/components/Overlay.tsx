@@ -152,9 +152,9 @@ export default function Overlay({
                     className={`btn-listen ${isListening ? 'active' : ''}`}
                     onClick={onToggleListening}
                     disabled={status !== 'connected'}
-                    title={isListening ? 'Stop listening' : 'Start listening'}
+                    title={status !== 'connected' ? 'Waiting for backend to start…' : isListening ? 'Stop listening' : 'Start listening'}
                   >
-                    {isListening ? '■ Stop' : '● Listen'}
+                    {status !== 'connected' ? '⏳ Starting…' : isListening ? '■ Stop' : '● Listen'}
                   </button>
                   <button
                     className="btn-gen"

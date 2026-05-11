@@ -147,24 +147,28 @@ function startBackend() {
 // ── Quick check — is backend already running? ─────────────────
 function isBackendAlreadyRunning() {
   return new Promise((resolve) => {
-    const req = http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
+    const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/health`, (res) => {
       resolve(res.statusCode === 200)
     })
     req.on('error', () => resolve(false))
-    req.setTimeout(600, () => { req.destroy(); resolve(false) })
+    req.setTimeout(800, () => { req.destroy(); resolve(false) })
   })
 }
 
 // ── Health poll — wait until backend responds ─────────────────
-function pollHealth(maxMs = 60000) {
+function pollHealth(maxMs = 90000) {
   return new Promise((resolve) => {
     const deadline = Date.now() + maxMs
+    let dots = 0
 
     function attempt() {
       if (Date.now() > deadline) { resolve(false); return }
+      dots++
+      if (dots % 5 === 0) console.log(`[main] waiting for backend${'.'.repeat(dots % 4 + 1)}`)
 
-      const req = http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
-        resolve(res.statusCode === 200)
+      const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/health`, (res) => {
+        if (res.statusCode === 200) resolve(true)
+        else setTimeout(attempt, 800)
       })
       req.on('error', () => setTimeout(attempt, 800))
       req.setTimeout(800, () => { req.destroy(); setTimeout(attempt, 800) })
@@ -177,27 +181,32 @@ function pollHealth(maxMs = 60000) {
 // ── App lifecycle ─────────────────────────────────────────────
 app.whenReady().then(async () => {
   const alreadyUp = await isBackendAlreadyRunning()
-  if (!alreadyUp) startBackend()  // skip if user started backend manually
-
-  if (isDev) {
-    // Dev: show window immediately; WebSocket auto-reconnects when backend is ready
-    createWindow()
+  if (!alreadyUp) {
+    console.log('[main] Starting backend process...')
+    startBackend()
   } else {
-    // Production: wait up to 60 s for backend before showing UI
-    const ready = await pollHealth(60000)
-    if (ready) {
-      createWindow()
-    } else {
-      dialog.showErrorBox(
-        'Maiku AI — Backend failed to start',
-        'The Python backend did not respond within 60 seconds.\n\n' +
-        'Check that your antivirus is not blocking maiku_backend.exe.\n' +
-        'Re-install the app if the problem persists.'
-      )
-      app.quit()
-      return
-    }
+    console.log('[main] Backend already running — skipping spawn')
   }
+
+  // Both dev AND production wait for backend health before showing UI
+  // This prevents the "Error" status on first load
+  console.log('[main] Waiting for backend to be ready...')
+  const ready = await pollHealth(90000)
+
+  if (!ready) {
+    dialog.showErrorBox(
+      'Maiku AI — Backend failed to start',
+      'The Python backend did not respond within 90 seconds.\n\n' +
+      'Make sure Python is installed and run:\n' +
+      '  pip install -r backend/requirements.txt\n\n' +
+      'Then restart the app.'
+    )
+    app.quit()
+    return
+  }
+
+  console.log('[main] Backend ready — creating window')
+  createWindow()
 
   globalShortcut.register('CommandOrControl+Alt+M', () => {
     if (!mainWindow) return
