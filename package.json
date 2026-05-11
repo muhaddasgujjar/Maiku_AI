@@ -71,8 +71,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "MuhammadMuhaddas",
-      "repo": "maiku-ai",
+      "owner": "muhaddasgujjar",
+      "repo": "Maiku_AI",
       "private": false
     }
   }
