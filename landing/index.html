@@ -564,7 +564,7 @@
         <li><a href="#faq">FAQ</a></li>
       </ul>
       <div class="nav-ctas">
-        <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-ghost">
+        <a href="#" class="btn btn-ghost dl-btn">
           ↓ Free Download
         </a>
         <a href="#pricing" class="btn btn-primary">
@@ -595,7 +595,7 @@
           Maiku AI listens to your interview in real-time and surfaces instant answers — completely invisible to screen recording and video calls.
         </p>
         <div class="hero-ctas">
-          <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-primary btn-lg">
+          <a href="#" class="btn btn-primary btn-lg dl-btn">
             ↓ Download Free
           </a>
           <a href="#pricing" class="btn btn-outline btn-lg">
@@ -801,7 +801,7 @@
           <li><span class="cross" style="color:var(--text-dim)">–</span> <span style="color:var(--text-dim)">No setup wizard</span></li>
           <li><span class="cross" style="color:var(--text-dim)">–</span> <span style="color:var(--text-dim)">Community support only</span></li>
         </ul>
-        <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-outline btn-lg price-cta">
+        <a href="#" class="btn btn-outline btn-lg price-cta dl-btn">
           Download Free
         </a>
       </div>
@@ -976,7 +976,7 @@
     <h2 class="cta-title animate-up">Ready to <span class="grad-text">ace</span> your next interview?</h2>
     <p class="cta-sub animate-up">Download free and start with your own Groq key — no credit card needed.</p>
     <div class="cta-buttons animate-up">
-      <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-outline btn-lg">
+      <a href="#" class="btn btn-outline btn-lg dl-btn">
         ↓ Download Free
       </a>
       <a href="https://muhaddasgujjar.gumroad.com/l/maiku-ai-pro" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
@@ -1008,12 +1008,46 @@
 
 <!-- Mobile sticky CTA -->
 <div class="mobile-cta">
-  <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-primary btn-lg">
+  <a href="#" class="btn btn-primary btn-lg dl-btn">
     ↓ Download Free
   </a>
 </div>
 
 <script>
+  // ════════════════════════════════════════════════════════════════
+  //  STEP 1 — Paste your direct download link here (one line only)
+  //
+  //  How to get a Google Drive direct link (3 min):
+  //    1. Go to drive.google.com → upload Maiku-AI-Setup.exe
+  //    2. Right-click the file → Share → "Anyone with the link" → Copy link
+  //       Your link looks like: https://drive.google.com/file/d/FILEID/view
+  //    3. Change it to:          https://drive.google.com/uc?export=download&id=FILEID
+  //    4. Paste that URL below and save the file
+  //
+  // ════════════════════════════════════════════════════════════════
+  const DOWNLOAD_URL = '';   // <-- PASTE YOUR LINK HERE
+
+  // Wire every download button to use the URL above
+  function applyDownloadUrl() {
+    const btns = document.querySelectorAll('.dl-btn');
+    if (!DOWNLOAD_URL) {
+      // No URL yet — show a friendly alert so you know it's not set
+      btns.forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          alert('Download link not set yet.\nOpen landing/index.html and fill in the DOWNLOAD_URL variable at the top of the script.');
+        });
+      });
+      return;
+    }
+    btns.forEach(btn => {
+      btn.href = DOWNLOAD_URL;
+      // Force browser to download the file instead of navigating
+      btn.setAttribute('download', 'Maiku-AI-Setup.exe');
+    });
+  }
+  applyDownloadUrl();
+
   // ── Navbar scroll effect ──────────────────────────────────────
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
@@ -1030,8 +1064,7 @@
     });
   }, { threshold: 0.12 });
 
-  document.querySelectorAll('.animate-up').forEach((el, i) => {
-    // Stagger delay based on position within parent
+  document.querySelectorAll('.animate-up').forEach((el) => {
     const siblings = Array.from(el.parentElement.querySelectorAll('.animate-up'));
     const idx = siblings.indexOf(el);
     el.style.transitionDelay = `${idx * 0.08}s`;
@@ -1043,9 +1076,7 @@
     q.addEventListener('click', () => {
       const item = q.closest('.faq-item');
       const isOpen = item.classList.contains('open');
-      // Close all
       document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-      // Open clicked (if wasn't already open)
       if (!isOpen) item.classList.add('open');
     });
   });
