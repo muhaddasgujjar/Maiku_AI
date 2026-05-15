@@ -1,6 +1,6 @@
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
-export type TabName = 'listen' | 'docs' | 'settings'
+export type TabName = 'listen' | 'chat' | 'docs' | 'settings'
 
 export interface TranscriptSegment {
   id: string
@@ -11,15 +11,44 @@ export interface TranscriptSegment {
 
 export interface Suggestion {
   id: string
-  answer: string       // full spoken answer — ready to read aloud
-  question: string     // detected question from transcript
+  answer: string
+  question: string
   timestamp: number
 }
 
+export type ApiProvider = 'groq' | 'openai' | 'anthropic' | 'openrouter'
+export type PromptMode = 'interview' | 'coding' | 'sales' | 'support' | 'custom'
+export type ResponseStyle = 'conversational' | 'bullet' | 'brief'
+export type ResponseLength = 'short' | 'medium' | 'long'
+
 export interface AppSettings {
+  // API provider
+  apiProvider?: ApiProvider
   groqApiKey?: string
+  openaiApiKey?: string
+  anthropicApiKey?: string
+  openrouterApiKey?: string
   llmModel?: string
+
+  // Prompt customization
+  promptMode?: PromptMode
+  persona?: string
+  customSystemPrompt?: string
+  responseStyle?: ResponseStyle
+  responseLength?: ResponseLength
+
+  // UI
   opacity?: number
+
+  // Onboarding
+  onboarded?: boolean
+}
+
+export interface ChatMessage {
+  id: string
+  question: string
+  answer: string
+  timestamp: number
 }
 
 export interface SessionEntry {
@@ -42,10 +71,12 @@ export type WsMessage =
   | { type: 'error'; message: string }
   | { type: 'listening_start' }
   | { type: 'listening_stop' }
+  | { type: 'chat_generating' }
+  | { type: 'chat_reply'; reply: ChatMessage }
+  | { type: 'chat_error'; message: string }
 
 export type WindowSize = 'compact' | 'normal' | 'answer-only'
 
-// Exposed by preload.js via contextBridge
 declare global {
   interface Window {
     maiku: {

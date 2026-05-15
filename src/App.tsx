@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Overlay from './components/Overlay'
+import Onboarding from './components/Onboarding'
 import type {
   ConnectionStatus, TabName, TranscriptSegment, Suggestion, WsMessage,
-  AppSettings, DocEntry, SessionEntry,
+  AppSettings, DocEntry, SessionEntry, ChatMessage,
 } from './types'
 
 const RECONNECT_DELAY_MS = 3000
@@ -16,9 +17,13 @@ export default function App() {
   const [isListening, setIsListening] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [answerError, setAnswerError] = useState<string | null>(null)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [isChatGenerating, setIsChatGenerating] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabName>('listen')
   const [settings, setSettings] = useState<AppSettings>({})
   const [docs, setDocs] = useState<DocEntry[]>([])
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -29,26 +34,47 @@ export default function App() {
       if (saved && Object.keys(saved).length > 0) {
         setSettings(saved)
         if (saved.opacity != null) window.maiku?.setOpacity(saved.opacity)
-        if (saved.groqApiKey) {
-          // Push saved key to backend (may already be running)
+
+        const hasAnyKey = saved.groqApiKey || saved.openaiApiKey || saved.anthropicApiKey || saved.openrouterApiKey
+        if (hasAnyKey) {
+          // Push all saved settings to running backend
           fetch(`${BACKEND_HTTP}/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              groq_api_key: saved.groqApiKey,
-              llm_model: saved.llmModel,
+              groq_api_key: saved.groqApiKey ?? '',
+              openai_api_key: saved.openaiApiKey ?? '',
+              anthropic_api_key: saved.anthropicApiKey ?? '',
+              openrouter_api_key: saved.openrouterApiKey ?? '',
+              api_provider: saved.apiProvider ?? 'groq',
+              llm_model: saved.llmModel ?? '',
+              prompt_mode: saved.promptMode ?? 'interview',
+              persona: saved.persona ?? '',
+              custom_system_prompt: saved.customSystemPrompt ?? '',
+              response_style: saved.responseStyle ?? 'conversational',
+              response_length: saved.responseLength ?? 'medium',
             }),
-          }).catch(() => { /* backend may not be up yet — it will read key from env */ })
+          }).catch(() => { /* backend may not be up yet — key is injected at next launch via env */ })
+        } else if (!saved.onboarded) {
+          // First-ever launch with no API key — show the welcome wizard
+          setShowOnboarding(true)
         } else {
-          // First run: no API key → guide user to Settings
           setActiveTab('settings')
         }
       } else {
-        // No settings file at all → first run
-        setActiveTab('settings')
+        // Brand new install — show onboarding wizard
+        setShowOnboarding(true)
       }
     }).catch(() => { /* not in Electron context (browser dev) */ })
   }, [])
+
+  const handleOnboardingComplete = useCallback(async (groqApiKey: string) => {
+    const updated: AppSettings = { ...settings, onboarded: true, ...(groqApiKey ? { groqApiKey, apiProvider: 'groq' } : {}) }
+    setSettings(updated)
+    await window.maiku?.saveSettings(updated)
+    setShowOnboarding(false)
+    if (!groqApiKey) setActiveTab('settings')
+  }, [settings])
 
   // ── WebSocket connection ───────────────────────────────────────
   const connect = useCallback(() => {
@@ -93,6 +119,18 @@ export default function App() {
             break
           case 'listening_stop':
             setIsListening(false)
+            break
+          case 'chat_generating':
+            setIsChatGenerating(true)
+            setChatError(null)
+            break
+          case 'chat_reply':
+            setIsChatGenerating(false)
+            setChatMessages((prev) => [...prev, msg.reply])
+            break
+          case 'chat_error':
+            setIsChatGenerating(false)
+            setChatError(msg.message)
             break
         }
       } catch {
@@ -143,6 +181,16 @@ export default function App() {
     sendCommand({ type: 'force_answer' })
   }, [sendCommand])
 
+  const sendChatMessage = useCallback((text: string) => {
+    setChatError(null)
+    sendCommand({ type: 'chat_message', text })
+  }, [sendCommand])
+
+  const clearChat = useCallback(() => {
+    setChatMessages([])
+    setChatError(null)
+  }, [])
+
   // ── Document list ──────────────────────────────────────────────
   const fetchDocs = useCallback(async () => {
     try {
@@ -181,24 +229,32 @@ export default function App() {
   }, [transcript, suggestions])
 
   return (
-    <Overlay
-      status={status}
-      transcript={transcript}
-      suggestions={suggestions}
-      isListening={isListening}
-      isGenerating={isGenerating}
-      answerError={answerError}
-      activeTab={activeTab}
-      settings={settings}
-      docs={docs}
-      backendUrl={BACKEND_HTTP}
-      onToggleListening={toggleListening}
-      onForceAnswer={forceAnswer}
-      onClear={clearSession}
-      onTabChange={setActiveTab}
-      onSaveSettings={handleSaveSettings}
-      onDocsChange={fetchDocs}
-      onSaveSession={handleSaveSession}
-    />
+    <>
+      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
+      <Overlay
+        status={status}
+        transcript={transcript}
+        suggestions={suggestions}
+        isListening={isListening}
+        isGenerating={isGenerating}
+        answerError={answerError}
+        chatMessages={chatMessages}
+        isChatGenerating={isChatGenerating}
+        chatError={chatError}
+        activeTab={activeTab}
+        settings={settings}
+        docs={docs}
+        backendUrl={BACKEND_HTTP}
+        onToggleListening={toggleListening}
+        onForceAnswer={forceAnswer}
+        onClear={clearSession}
+        onSendChat={sendChatMessage}
+        onClearChat={clearChat}
+        onTabChange={setActiveTab}
+        onSaveSettings={handleSaveSettings}
+        onDocsChange={fetchDocs}
+        onSaveSession={handleSaveSession}
+      />
+    </>
   )
 }

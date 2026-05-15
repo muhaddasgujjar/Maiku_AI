@@ -6,8 +6,10 @@ const { spawn } = require('child_process')
 
 const isDev = process.env.NODE_ENV !== 'production'
 const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || '8765', 10)
+const POLL_TIMEOUT_MS = isDev ? 60000 : 120000   // dev: 1 min, prod: 2 min
 
 let mainWindow = null
+let splashWindow = null
 let backendProcess = null
 
 // ── Settings persistence ──────────────────────────────────────
@@ -41,7 +43,31 @@ ipcMain.handle('save-session', (_, data) => {
   return { ok: true, file }
 })
 
-// ── Window creation ───────────────────────────────────────────
+// ── Splash window ─────────────────────────────────────────────
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 360,
+    height: 260,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    center: true,
+    resizable: false,
+    hasShadow: true,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  })
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'))
+}
+
+function closeSplash() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.destroy()
+    splashWindow = null
+  }
+}
+
+// ── Main overlay window ───────────────────────────────────────
 function createWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize
 
@@ -56,6 +82,7 @@ function createWindow() {
     skipTaskbar: true,
     resizable: true,
     hasShadow: false,
+    show: false,           // don't show until ready-to-show fires
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -64,8 +91,6 @@ function createWindow() {
   })
 
   // THE KEY FEATURE: hide from screen sharing / capture
-  // Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
-  // macOS: NSWindowSharingNone
   mainWindow.setContentProtection(true)
 
   const saved = loadSettingsFromDisk()
@@ -76,6 +101,12 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  // Show the window only when it's fully painted — eliminates white flash
+  mainWindow.once('ready-to-show', () => {
+    closeSplash()
+    mainWindow.show()
+  })
 
   ipcMain.on('window-move', (_, { deltaX, deltaY }) => {
     if (!mainWindow) return
@@ -112,9 +143,9 @@ function getBackendEnv() {
     ...process.env,
     BACKEND_PORT: String(BACKEND_PORT),
     CHROMA_PERSIST_DIR: path.join(userData, 'chroma_db'),
-    // Model cache inside userData so it survives app moves
     HF_HOME: path.join(userData, 'models'),
-    // Inject saved API key & model into backend env
+    SENTENCE_TRANSFORMERS_HOME: path.join(userData, 'models'),
+    TRANSFORMERS_CACHE: path.join(userData, 'models'),
     ...(settings.groqApiKey ? { GROQ_API_KEY: settings.groqApiKey } : {}),
     ...(settings.llmModel ? { LLM_MODEL: settings.llmModel } : {}),
   }
@@ -124,11 +155,9 @@ function startBackend() {
   let cmd, args
 
   if (isDev) {
-    // Dev: run via Python interpreter
     cmd = process.platform === 'win32' ? 'python' : 'python3'
     args = [path.join(__dirname, '../backend/main.py')]
   } else {
-    // Production: use PyInstaller-built exe bundled in extraResources
     const exeName = process.platform === 'win32' ? 'maiku_backend.exe' : 'maiku_backend'
     cmd = path.join(process.resourcesPath, 'backend', 'maiku_backend', exeName)
     args = []
@@ -137,14 +166,18 @@ function startBackend() {
   backendProcess = spawn(cmd, args, {
     env: getBackendEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,    // prevents any console window flash on Windows
   })
 
   backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString().trim()))
   backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString().trim()))
   backendProcess.on('close', (code) => console.log(`[backend] exited with code ${code}`))
+  backendProcess.on('error', (err) => {
+    console.error('[backend] failed to start:', err.message)
+  })
 }
 
-// ── Quick check — is backend already running? ─────────────────
+// ── Is backend already running? ───────────────────────────────
 function isBackendAlreadyRunning() {
   return new Promise((resolve) => {
     const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/health`, (res) => {
@@ -155,20 +188,18 @@ function isBackendAlreadyRunning() {
   })
 }
 
-// ── Health poll — wait until backend responds ─────────────────
-function pollHealth(maxMs = 90000) {
+// ── Poll until backend is ready ───────────────────────────────
+function pollHealth(maxMs) {
   return new Promise((resolve) => {
     const deadline = Date.now() + maxMs
-    let dots = 0
 
     function attempt() {
       if (Date.now() > deadline) { resolve(false); return }
-      dots++
-      if (dots % 5 === 0) console.log(`[main] waiting for backend${'.'.repeat(dots % 4 + 1)}`)
-
       const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/health`, (res) => {
-        if (res.statusCode === 200) resolve(true)
-        else setTimeout(attempt, 800)
+        if (res.statusCode === 200) { resolve(true); return }
+        // Drain response body so socket closes properly
+        res.resume()
+        setTimeout(attempt, 800)
       })
       req.on('error', () => setTimeout(attempt, 800))
       req.setTimeout(800, () => { req.destroy(); setTimeout(attempt, 800) })
@@ -180,6 +211,9 @@ function pollHealth(maxMs = 90000) {
 
 // ── App lifecycle ─────────────────────────────────────────────
 app.whenReady().then(async () => {
+  // Show splash immediately so the user sees something right away
+  createSplashWindow()
+
   const alreadyUp = await isBackendAlreadyRunning()
   if (!alreadyUp) {
     console.log('[main] Starting backend process...')
@@ -188,25 +222,23 @@ app.whenReady().then(async () => {
     console.log('[main] Backend already running — skipping spawn')
   }
 
-  // Both dev AND production wait for backend health before showing UI
-  // This prevents the "Error" status on first load
   console.log('[main] Waiting for backend to be ready...')
-  const ready = await pollHealth(90000)
+  const ready = await pollHealth(POLL_TIMEOUT_MS)
 
   if (!ready) {
-    dialog.showErrorBox(
-      'Maiku AI — Backend failed to start',
-      'The Python backend did not respond within 90 seconds.\n\n' +
-      'Make sure Python is installed and run:\n' +
-      '  pip install -r backend/requirements.txt\n\n' +
-      'Then restart the app.'
-    )
+    closeSplash()
+
+    const msg = isDev
+      ? 'Development mode: make sure Python is installed and run:\n  pip install -r backend/requirements.txt\n\nThen restart the app.'
+      : 'Maiku AI could not start the AI backend.\n\nPossible fixes:\n• Restart the app\n• Run as Administrator\n• Check your antivirus isn\'t blocking Maiku AI\n• Reinstall from the official installer\n\nFor support: muhaddasbasit260@gmail.com'
+
+    dialog.showErrorBox('Maiku AI — Failed to start', msg)
     app.quit()
     return
   }
 
   console.log('[main] Backend ready — creating window')
-  createWindow()
+  createWindow()  // splash is closed inside ready-to-show
 
   globalShortcut.register('CommandOrControl+Alt+M', () => {
     if (!mainWindow) return

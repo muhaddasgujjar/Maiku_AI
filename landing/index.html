@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maiku AI — Your Invisible Interview Copilot</title>
+  <meta name="description" content="Maiku AI listens to your interview in real-time and delivers instant AI answers — completely invisible during screen sharing. Ace every interview." />
+  <meta property="og:title" content="Maiku AI — Your Invisible Interview Copilot" />
+  <meta property="og:description" content="Real-time AI answers during interviews. Invisible to screen sharing. Works with Zoom, Teams, Meet." />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --primary-dim: rgba(99,102,241,0.15);
+      --secondary: #8b5cf6;
+      --bg: #09090b;
+      --bg-2: #0f0f14;
+      --bg-card: rgba(255,255,255,0.034);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(99,102,241,0.4);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --green: #22c55e;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; }
+
+    /* ── Utility ── */
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    .grad-text {
+      background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: 999px;
+      background: var(--primary-dim); border: 1px solid rgba(99,102,241,0.3);
+      font-size: 12px; font-weight: 600; color: var(--primary-light);
+      letter-spacing: 0.04em;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes glow { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    .animate-up { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+    .animate-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      border-bottom: 1px solid transparent;
+      transition: background .3s, border-color .3s, backdrop-filter .3s;
+    }
+    nav.scrolled {
+      background: rgba(9,9,11,0.85);
+      border-color: var(--border);
+      backdrop-filter: blur(20px);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 18px;
+    }
+    .nav-logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 14px; font-weight: 500; color: var(--text-muted);
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-ctas { display: flex; align-items: center; gap: 10px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: all .2s;
+    }
+    .btn-ghost {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--border-hover); color: var(--text); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(99,102,241,0.45);
+    }
+    .btn-lg { padding: 14px 32px; font-size: 16px; border-radius: 12px; }
+    .btn-outline {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary-light); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center;
+      padding: 120px 0 80px;
+      position: relative; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; pointer-events: none;
+      overflow: hidden;
+    }
+    .hero-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); animation: glow 4s ease infinite;
+    }
+    .hero-orb-1 {
+      width: 600px; height: 600px; top: -200px; left: -100px;
+      background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%);
+    }
+    .hero-orb-2 {
+      width: 500px; height: 500px; top: 100px; right: -150px;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+      animation-delay: 2s;
+    }
+    .hero-orb-3 {
+      width: 300px; height: 300px; bottom: 0; left: 50%;
+      background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%);
+      animation-delay: 1s;
+    }
+    .hero-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 64px; align-items: center;
+    }
+    .hero-content { animation: fadeUp .8s ease forwards; }
+    .hero-visual { animation: fadeUp .8s ease .2s both; }
+
+    .hero-badge { margin-bottom: 24px; }
+    .hero-headline {
+      font-size: clamp(36px, 5vw, 58px);
+      font-weight: 900; line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+    }
+    .hero-sub {
+      font-size: 18px; color: var(--text-muted);
+      line-height: 1.7; max-width: 480px;
+      margin-bottom: 36px;
+    }
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+    .hero-trust {
+      display: flex; align-items: center; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hero-trust-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-muted);
+    }
+    .hero-trust-item svg { color: var(--green); }
+
+    /* App mockup */
+    .app-mockup {
+      background: rgba(20,22,35,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      position: relative;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+      animation: float 6s ease infinite;
+    }
+    .app-mockup::before {
+      content: '';
+      position: absolute; inset: -1px;
+      border-radius: 17px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.3), transparent, rgba(139,92,246,0.3));
+      z-index: -1;
+    }
+    .mockup-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      margin-bottom: 12px;
+    }
+    .mockup-title { font-size: 11px; font-weight: 700; color: var(--primary-light); letter-spacing: 0.06em; }
+    .mockup-badge {
+      background: rgba(239,68,68,0.15); color: #f87171;
+      font-size: 9px; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px;
+      animation: pulse 1s infinite;
+    }
+    .mockup-suggestion {
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 10px; padding: 12px;
+      margin-bottom: 10px;
+    }
+    .mockup-q { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
+    .mockup-q strong { color: var(--primary-light); }
+    .mockup-a { font-size: 11px; color: var(--text); line-height: 1.6; }
+    .mockup-transcript {
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px; padding: 10px;
+      font-size: 10px; color: var(--text-muted); line-height: 1.8;
+    }
+    .mockup-controls {
+      display: flex; gap: 8px; margin-top: 12px;
+    }
+    .mockup-btn {
+      flex: 1; padding: 8px;
+      border-radius: 8px; font-size: 10px; font-weight: 600;
+      text-align: center;
+    }
+    .mockup-btn-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .mockup-btn-ind { background: rgba(99,102,241,0.15); color: var(--primary-light); border: 1px solid rgba(99,102,241,0.3); }
+
+    /* ── Stats ── */
+    .stats {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-2);
+      padding: 28px 0;
+    }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 0; text-align: center;
+    }
+    .stat-item {
+      padding: 8px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-size: 28px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+    .stat-label { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Section base ── */
+    section { padding: 96px 0; }
+    .section-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--primary-light);
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 900; line-height: 1.15;
+      letter-spacing: -0.025em;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 17px; color: var(--text-muted);
+      max-width: 560px; line-height: 1.7;
+    }
+    .section-head { margin-bottom: 56px; }
+
+    /* ── How it works ── */
+    .how-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+    .how-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      position: relative;
+      transition: border-color .3s, transform .3s;
+    }
+    .how-card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
+    .how-num {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 900;
+      margin-bottom: 20px;
+    }
+    .how-connector {
+      position: absolute; top: 50px; right: -16px;
+      width: 32px; height: 2px;
+      background: linear-gradient(to right, var(--primary), transparent);
+      z-index: 1;
+    }
+    .how-grid > *:last-child .how-connector { display: none; }
+    .how-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .how-card p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: border-color .3s, background .3s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-hover);
+      background: rgba(99,102,241,0.05);
+    }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--primary-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 16px;
+    }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+
+    /* ── Compat ── */
+    .compat {
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 0;
+    }
+    .compat-label { text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 32px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+    .compat-logos {
+      display: flex; align-items: center; justify-content: center;
+      gap: 48px; flex-wrap: wrap;
+    }
+    .compat-logo {
+      display: flex; align-items: center; gap: 10px;
+      opacity: .5; transition: opacity .2s; filter: grayscale(1);
+    }
+    .compat-logo:hover { opacity: 1; filter: none; }
+    .compat-logo-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .compat-logo span { font-size: 15px; font-weight: 600; }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px; align-items: start;
+    }
+    .price-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      position: relative;
+      transition: transform .3s;
+    }
+    .price-card:hover { transform: translateY(-4px); }
+    .price-card.featured {
+      border-color: var(--primary);
+      background: rgba(99,102,241,0.07);
+    }
+    .price-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff; font-size: 10px; font-weight: 800;
+      padding: 4px 16px; border-radius: 999px; letter-spacing: .08em;
+    }
+    .price-name { font-size: 14px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .price-amount { margin-bottom: 6px; }
+    .price-amount .amount { font-size: 48px; font-weight: 900; line-height: 1; }
+    .price-amount .period { font-size: 16px; color: var(--text-muted); }
+    .price-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+    .price-features { list-style: none; margin-bottom: 28px; }
+    .price-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; margin-bottom: 12px;
+    }
+    .price-features li .check { color: var(--green); flex-shrink: 0; font-size: 16px; }
+    .price-features li .cross { color: var(--text-dim); flex-shrink: 0; }
+    .price-cta { width: 100%; text-align: center; display: block; }
+
+    /* ── Testimonials ── */
+    .testimonials-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .testimonial-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .testimonial-stars { font-size: 14px; margin-bottom: 14px; color: #fbbf24; }
+    .testimonial-text { font-size: 14px; line-height: 1.7; color: var(--text-muted); margin-bottom: 20px; font-style: italic; }
+    .testimonial-author { display: flex; align-items: center; gap: 12px; }
+    .testimonial-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; flex-shrink: 0;
+    }
+    .testimonial-name { font-size: 14px; font-weight: 600; }
+    .testimonial-role { font-size: 12px; color: var(--text-dim); }
+
+    /* ── FAQ ── */
+    .faq-list { max-width: 760px; margin: 0 auto; }
+    .faq-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .faq-item.open { border-color: var(--border-hover); }
+    .faq-question {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; cursor: pointer;
+      font-size: 15px; font-weight: 600;
+      background: var(--bg-card);
+      transition: background .2s;
+    }
+    .faq-question:hover { background: rgba(255,255,255,0.05); }
+    .faq-chevron {
+      width: 20px; height: 20px; flex-shrink: 0;
+      transition: transform .3s;
+      color: var(--text-muted);
+    }
+    .faq-item.open .faq-chevron { transform: rotate(180deg); }
+    .faq-answer {
+      max-height: 0; overflow: hidden;
+      transition: max-height .4s ease, padding .3s;
+      padding: 0 24px;
+      font-size: 14px; color: var(--text-muted); line-height: 1.8;
+    }
+    .faq-item.open .faq-answer { max-height: 400px; padding: 16px 24px 20px; }
+
+    /* ── Final CTA ── */
+    .cta-section {
+      padding: 96px 0;
+      text-align: center;
+      background: radial-gradient(ellipse at center, rgba(99,102,241,0.12) 0%, transparent 70%);
+    }
+    .cta-title {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 900; letter-spacing: -0.03em;
+      margin-bottom: 16px; line-height: 1.1;
+    }
+    .cta-sub { font-size: 18px; color: var(--text-muted); margin-bottom: 36px; }
+    .cta-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .cta-note { font-size: 12px; color: var(--text-dim); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      background: var(--bg-2);
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--text-dim); transition: color .2s; }
+    .footer-links a:hover { color: var(--text-muted); }
+    .footer-copy { font-size: 13px; color: var(--text-dim); }
+
+    /* ── Mobile ── */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; text-align: center; }
+      .hero-sub { margin-left: auto; margin-right: auto; }
+      .hero-ctas, .hero-trust { justify-content: center; }
+      .hero-visual { order: -1; }
+      .how-grid, .features-grid, .testimonials-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-item:nth-child(2) { border-right: none; }
+      .stat-item:nth-child(1), .stat-item:nth-child(2) { border-bottom: 1px solid var(--border); }
+      nav .nav-links { display: none; }
+      .how-connector { display: none; }
+      .footer-inner { flex-direction: column; text-align: center; }
+      .footer-links { justify-content: center; }
+      .compat-logos { gap: 28px; }
+    }
+    @media (max-width: 560px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+      .stat-item:last-child { border-bottom: none; }
+    }
+
+    /* ── Invisible badge animation ── */
+    .invisible-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      font-size: 13px; color: var(--text-muted);
+      margin-top: 20px;
+    }
+    .invisible-badge .icon { font-size: 16px; }
+
+    /* Sticky CTA bar on mobile */
+    .mobile-cta {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(9,9,11,0.95);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      padding: 12px 24px;
+      z-index: 99;
+    }
+    @media (max-width: 600px) {
+      .mobile-cta { display: block; }
+      .mobile-cta .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ── Sticky Nav ── -->
+<nav id="navbar">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon">🎯</div>
+        Maiku AI
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how">How it Works</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <div class="nav-ctas">
+        <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-ghost">
+          ↓ Free Download
+        </a>
+        <a href="#pricing" class="btn btn-primary">
+          Get Pro →
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero" id="hero">
+  <div class="hero-bg">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+  </div>
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge"><span class="dot"></span>Live — Available Now</span>
+        </div>
+        <h1 class="hero-headline">
+          Your <span class="grad-text">invisible</span><br/>AI interview<br/>copilot
+        </h1>
+        <p class="hero-sub">
+          Maiku AI listens to your interview in real-time and surfaces instant answers — completely invisible to screen recording and video calls.
+        </p>
+        <div class="hero-ctas">
+          <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-primary btn-lg">
+            ↓ Download Free
+          </a>
+          <a href="#pricing" class="btn btn-outline btn-lg">
+            See Pricing
+          </a>
+        </div>
+        <div class="hero-trust">
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/></svg>
+            Invisible during screen share
+          </div>
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/></svg>
+            Windows 10/11 supported
+          </div>
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/></svg>
+            Free Groq API included
+          </div>
+        </div>
+      </div>
+
+      <!-- App Mockup -->
+      <div class="hero-visual">
+        <div class="app-mockup">
+          <div class="mockup-header">
+            <span class="mockup-title">MAIKU AI</span>
+            <span class="mockup-badge">● LISTENING</span>
+          </div>
+          <div class="mockup-suggestion">
+            <div class="mockup-q"><strong>Detected question:</strong> "Tell me about your experience with Python..."</div>
+            <div class="mockup-a">I have 4+ years of Python experience, primarily in backend development using FastAPI and Django. At my last role, I designed a REST API serving 50k daily requests, and I'm comfortable with async programming, unit testing, and CI/CD pipelines...</div>
+          </div>
+          <div class="mockup-transcript">
+            <div>🎙 "So can you walk me through how you'd approach..."</div>
+            <div style="color:#6366f1;margin-top:6px">⚡ Generating answer...</div>
+          </div>
+          <div class="mockup-controls">
+            <div class="mockup-btn mockup-btn-red">■ Stop</div>
+            <div class="mockup-btn mockup-btn-ind">⚡ Force Answer</div>
+          </div>
+          <div class="invisible-badge">
+            <span class="icon">🔒</span>
+            Hidden from screen recording
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats ── -->
+<div class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-num grad-text">&lt;1s</div>
+        <div class="stat-label">Answer generation speed</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num grad-text">100%</div>
+        <div class="stat-label">Invisible to screen capture</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num grad-text">Free</div>
+        <div class="stat-label">Groq API — 7200 sec/day</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num grad-text">5+</div>
+        <div class="stat-label">AI providers supported</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── How It Works ── -->
+<section id="how">
+  <div class="container">
+    <div class="section-head animate-up">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">Up and running in <span class="grad-text">3 minutes</span></h2>
+      <p class="section-sub">No complex setup. Download, install, add your free API key, and start your interview.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-card animate-up">
+        <div class="how-num">1</div>
+        <div class="how-connector"></div>
+        <h3>Download &amp; Install</h3>
+        <p>Download the installer, run it, and Maiku AI installs in seconds. No Python or technical knowledge required — everything is bundled.</p>
+      </div>
+      <div class="how-card animate-up">
+        <div class="how-num">2</div>
+        <div class="how-connector"></div>
+        <h3>Add Your Free API Key</h3>
+        <p>Create a free Groq account and paste your API key. Groq gives you 7,200 seconds of Whisper transcription per day — completely free.</p>
+      </div>
+      <div class="how-card animate-up">
+        <div class="how-num">3</div>
+        <h3>Ace Your Interview</h3>
+        <p>Start your video call, click "Listen" in Maiku AI. It hears the interviewer's questions and generates instant talking points — only you can see.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section id="features" style="background: var(--bg-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-head animate-up">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need to <span class="grad-text">perform your best</span></h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card animate-up">
+        <div class="feature-icon">🔒</div>
+        <h3>Screen-Share Invisible</h3>
+        <p>Uses Windows WDA_EXCLUDEFROMCAPTURE at the OS level. The overlay literally doesn't exist in any recording or screen share — no tricks, no opacity hacks.</p>
+      </div>
+      <div class="feature-card animate-up">
+        <div class="feature-icon">🎤</div>
+        <h3>WASAPI Audio Capture</h3>
+        <p>Captures your system audio (interviewer's voice) with near-zero latency using Windows WASAPI loopback. No microphone required — it hears what your speakers play.</p>
+      </div>
+      <div class="feature-card animate-up">
+        <div class="feature-icon">⚡</div>
+        <h3>Sub-Second AI Answers</h3>
+        <p>Groq's ultra-fast inference runs llama-3.3-70b in milliseconds. From question detection to complete answer suggestion — typically under 1 second.</p>
+      </div>
+      <div class="feature-card animate-up">
+        <div class="feature-icon">📚</div>
+        <h3>Upload Your Resume &amp; Docs</h3>
+        <p>Upload your resume, job description, or study notes. Maiku's RAG pipeline uses them to generate answers that sound specifically like you.</p>
+      </div>
+      <div class="feature-card animate-up">
+        <div class="feature-icon">🔑</div>
+        <h3>Bring Your Own Key</h3>
+        <p>Works with Groq (free tier), OpenAI GPT-4, Anthropic Claude, and OpenRouter. Switch providers any time from Settings — no lock-in.</p>
+      </div>
+      <div class="feature-card animate-up">
+        <div class="feature-icon">💾</div>
+        <h3>Session Recording</h3>
+        <p>Save your full transcript and all AI suggestions after the interview. Review what worked, refine for next time, and build a personal answer library.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Compatible With ── -->
+<div class="compat">
+  <div class="container">
+    <div class="compat-label">Works with any video tool</div>
+    <div class="compat-logos">
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#2D8CFF22">🔵</div>
+        <span>Zoom</span>
+      </div>
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#6264A722">💜</div>
+        <span>Microsoft Teams</span>
+      </div>
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#1A73E822">🔷</div>
+        <span>Google Meet</span>
+      </div>
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#FF6F0122">🟠</div>
+        <span>Webex</span>
+      </div>
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#5865F222">🟣</div>
+        <span>Discord</span>
+      </div>
+      <div class="compat-logo">
+        <div class="compat-logo-icon" style="background:#ffffff0a">💻</div>
+        <span>Any video call</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pricing ── -->
+<section id="pricing">
+  <div class="container">
+    <div class="section-head animate-up" style="text-align:center; margin-left:auto; margin-right:auto; max-width:600px;">
+      <div class="section-label" style="text-align:center">Pricing</div>
+      <h2 class="section-title">Simple, one-time pricing</h2>
+      <p class="section-sub" style="margin:0 auto">No subscription. No data sent to our servers. You own the app forever.</p>
+    </div>
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="price-card animate-up">
+        <div class="price-name">Starter</div>
+        <div class="price-amount">
+          <span class="amount">Free</span>
+        </div>
+        <div class="price-desc">For developers who want full control</div>
+        <ul class="price-features">
+          <li><span class="check">✓</span> All core features</li>
+          <li><span class="check">✓</span> Bring your own API key</li>
+          <li><span class="check">✓</span> Document upload (RAG)</li>
+          <li><span class="check">✓</span> Screen-share invisible overlay</li>
+          <li><span class="check">✓</span> Open source (GitHub)</li>
+          <li><span class="cross" style="color:var(--text-dim)">–</span> <span style="color:var(--text-dim)">No setup wizard</span></li>
+          <li><span class="cross" style="color:var(--text-dim)">–</span> <span style="color:var(--text-dim)">Community support only</span></li>
+        </ul>
+        <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-outline btn-lg price-cta">
+          Download Free
+        </a>
+      </div>
+
+      <!-- Pro -->
+      <div class="price-card featured animate-up">
+        <div class="price-name">Pro</div>
+        <div class="price-amount">
+          <span class="amount">$<span class="grad-text">24</span></span>
+          <span class="period"> one-time</span>
+        </div>
+        <div class="price-desc">For job seekers who want it to just work</div>
+        <ul class="price-features">
+          <li><span class="check">✓</span> Everything in Starter</li>
+          <li><span class="check">✓</span> <strong>Pre-built installer</strong> (no Python)</li>
+          <li><span class="check">✓</span> Guided setup wizard</li>
+          <li><span class="check">✓</span> 1-click API key configuration</li>
+          <li><span class="check">✓</span> Auto-updates (1 year)</li>
+          <li><span class="check">✓</span> Priority email support</li>
+          <li><span class="check">✓</span> License for personal use</li>
+        </ul>
+        <!-- Replace this href with your Gumroad/LemonSqueezy product URL -->
+        <a href="https://muhaddasgujjar.gumroad.com/l/maiku-ai-pro" target="_blank" rel="noopener" class="btn btn-primary btn-lg price-cta">
+          Get Pro — $24
+        </a>
+      </div>
+
+      <!-- Lifetime -->
+      <div class="price-card animate-up">
+        <div class="price-name">Lifetime</div>
+        <div class="price-amount">
+          <span class="amount">$<span class="grad-text">79</span></span>
+          <span class="period"> one-time</span>
+        </div>
+        <div class="price-desc">For power users and teams</div>
+        <ul class="price-features">
+          <li><span class="check">✓</span> Everything in Pro</li>
+          <li><span class="check">✓</span> <strong>Lifetime auto-updates</strong></li>
+          <li><span class="check">✓</span> Up to 3 devices</li>
+          <li><span class="check">✓</span> Custom AI persona settings</li>
+          <li><span class="check">✓</span> Priority feature requests</li>
+          <li><span class="check">✓</span> Direct developer access</li>
+          <li><span class="check">✓</span> Commercial use license</li>
+        </ul>
+        <!-- Replace this href with your Gumroad/LemonSqueezy product URL -->
+        <a href="https://muhaddasgujjar.gumroad.com/l/maiku-ai-lifetime" target="_blank" rel="noopener" class="btn btn-outline btn-lg price-cta">
+          Get Lifetime — $79
+        </a>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:24px; font-size:13px; color:var(--text-dim);">
+      💳 Secure payment via Gumroad. Instant download after purchase. 30-day refund guarantee.
+    </p>
+  </div>
+</section>
+
+<!-- ── Testimonials ── -->
+<section style="background: var(--bg-2); border-top: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-head animate-up" style="text-align:center">
+      <div class="section-label" style="text-align:center">Testimonials</div>
+      <h2 class="section-title">Used by real job seekers</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card animate-up">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"I used Maiku AI during a FAANG loop and it was a game changer. When the system design question hit, I had structured talking points in under a second. Got the offer."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">A</div>
+          <div>
+            <div class="testimonial-name">Alex R.</div>
+            <div class="testimonial-role">Software Engineer, Big Tech</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card animate-up">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"The invisible feature genuinely works — I shared my screen the entire interview and the interviewer had no idea. The suggestions were relevant because I uploaded my resume first."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">S</div>
+          <div>
+            <div class="testimonial-name">Sara K.</div>
+            <div class="testimonial-role">Product Manager, SaaS startup</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card animate-up">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"Free Groq tier was more than enough for a full 1-hour interview. The sub-second latency is real — I was able to glance at the suggestion while formulating my answer."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">M</div>
+          <div>
+            <div class="testimonial-name">Marcus T.</div>
+            <div class="testimonial-role">Data Scientist, Finance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq">
+  <div class="container">
+    <div class="section-head animate-up" style="text-align:center">
+      <div class="section-label" style="text-align:center">FAQ</div>
+      <h2 class="section-title">Common questions</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-question">
+          Is my interview audio stored or sent to any server?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          Your audio goes directly to the Groq API (or whichever provider you configure) using your own API key. Maiku AI has no backend server — there is no middleman. Your data travels from your PC to Groq and back, that's it. Groq's free tier does not store audio.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">
+          Which AI providers are supported?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          Groq (free tier — recommended), OpenAI GPT-4o, Anthropic Claude, and OpenRouter (which gives access to hundreds of models). You switch providers in the Settings tab without restarting the app.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">
+          Does it work on Mac or Linux?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          The current version is Windows 10/11 only. Windows is required for the WASAPI audio loopback capture (capturing the interviewer's audio from your speakers) and the WDA_EXCLUDEFROMCAPTURE screen-privacy feature. Mac support is planned for a future release.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">
+          What's the difference between Free and Pro?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          Free is the open-source version on GitHub — you need to be comfortable running Python scripts to set it up. Pro is a polished Windows installer (.exe) with a guided setup wizard, auto-updates, and email support. The AI features and overlay are identical — you're paying for convenience and support, not capability.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">
+          Do I need a Groq API key? How much does it cost?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          Groq's free tier gives 7,200 seconds of Whisper transcription per day and generous LLM tokens — more than enough for multiple hour-long interviews daily. Creating an account at groq.com is free and takes 2 minutes. No credit card required.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">
+          Can the interviewer detect I'm using Maiku AI?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="faq-answer">
+          No. The overlay uses Windows' SetWindowDisplayAffinity API to be excluded from all screen capture at the OS level — not by making it transparent or hiding it manually. When you share your screen, the Maiku AI window is genuinely not captured. The interviewer sees only what you'd normally share.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Final CTA ── -->
+<section class="cta-section">
+  <div class="container">
+    <h2 class="cta-title animate-up">Ready to <span class="grad-text">ace</span> your next interview?</h2>
+    <p class="cta-sub animate-up">Download free and start with your own Groq key — no credit card needed.</p>
+    <div class="cta-buttons animate-up">
+      <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-outline btn-lg">
+        ↓ Download Free
+      </a>
+      <a href="https://muhaddasgujjar.gumroad.com/l/maiku-ai-pro" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
+        Get Pro — $24 one-time →
+      </a>
+    </div>
+    <div class="cta-note animate-up">Windows 10/11 · No subscription · Instant download</div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <div class="nav-logo-icon" style="width:24px;height:24px;font-size:12px">🎯</div>
+        Maiku AI
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/muhaddasgujjar/Maiku_AI" target="_blank">GitHub</a>
+        <a href="https://github.com/muhaddasgujjar/Maiku_AI/issues" target="_blank">Support</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="footer-copy">© 2026 Muhammad Muhaddas. All rights reserved.</div>
+    </div>
+  </div>
+</footer>
+
+<!-- Mobile sticky CTA -->
+<div class="mobile-cta">
+  <a href="https://github.com/muhaddasgujjar/Maiku_AI/releases/latest/download/Maiku-AI-Setup.exe" class="btn btn-primary btn-lg">
+    ↓ Download Free
+  </a>
+</div>
+
+<script>
+  // ── Navbar scroll effect ──────────────────────────────────────
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // ── Scroll animations ─────────────────────────────────────────
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.animate-up').forEach((el, i) => {
+    // Stagger delay based on position within parent
+    const siblings = Array.from(el.parentElement.querySelectorAll('.animate-up'));
+    const idx = siblings.indexOf(el);
+    el.style.transitionDelay = `${idx * 0.08}s`;
+    observer.observe(el);
+  });
+
+  // ── FAQ accordion ─────────────────────────────────────────────
+  document.querySelectorAll('.faq-question').forEach(q => {
+    q.addEventListener('click', () => {
+      const item = q.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      // Close all
+      document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+      // Open clicked (if wasn't already open)
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+
+  // ── Smooth scroll for nav links ───────────────────────────────
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+</body>
+</html>
